@@ -45,7 +45,7 @@ body {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: clamp(14px, 2vw, 26px);
   overflow: hidden;
-  filter: blur(0.14px) saturate(0.82) brightness(0.66);
+  filter: blur(0.16px) saturate(0.78) brightness(0.6);
   animation: tubeBreath 6.4s ease-in-out infinite;
 }
 
@@ -78,7 +78,9 @@ body {
 
 .vhs-noise,
 .scanlines,
+.datamosh,
 .tear-line,
+.echo-flash,
 .hidden-flash {
   position: fixed;
   inset: 0;
@@ -126,8 +128,26 @@ body {
   animation: analogTear 5.6s steps(16, end) infinite;
 }
 
+.datamosh {
+  z-index: 11;
+  opacity: 0;
+  background:
+    linear-gradient(180deg, rgba(62, 153, 230, 0.16), rgba(36, 184, 198, 0.08) 32%, transparent 68%),
+    repeating-linear-gradient(90deg, transparent 0 3px, rgba(94, 177, 255, 0.34) 3px 4px, transparent 4px 9px),
+    repeating-linear-gradient(90deg, rgba(152, 218, 255, 0.13) 0 1px, transparent 1px 19px),
+    repeating-linear-gradient(0deg, transparent 0 14px, rgba(255, 255, 255, 0.05) 14px 15px, transparent 15px 28px);
+  mix-blend-mode: screen;
+  clip-path: inset(var(--smash-top, 18%) 0 var(--smash-bottom, 38%) 0);
+  transform: translate3d(var(--smash-x, 0), var(--smash-y, 0), 0) scaleY(1.06);
+}
+
+.datamosh.active {
+  opacity: 0.46;
+  animation: datamoshBreak 520ms steps(5, end) 1;
+}
+
 .hidden-flash {
-  z-index: 12;
+  z-index: 13;
   display: grid;
   place-items: center;
   padding: 8vw;
@@ -146,6 +166,32 @@ body {
     -3px 0 rgba(185, 58, 82, 0.3),
     0 0 34px rgba(90, 184, 132, 0.16);
   transform: translateX(0);
+}
+
+.echo-flash {
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 8vw;
+  opacity: 0;
+  color: rgba(190, 244, 222, 0.44);
+  font-size: clamp(1.8rem, 5.6vw, 6rem);
+  font-weight: 720;
+  line-height: 1;
+  text-align: center;
+  text-transform: lowercase;
+  white-space: pre-line;
+  text-shadow:
+    2px 0 rgba(54, 196, 194, 0.22),
+    -2px 0 rgba(115, 73, 164, 0.18),
+    0 0 42px rgba(90, 184, 132, 0.12);
+  background: rgba(0, 0, 0, 0.16);
+  filter: blur(0.25px);
+}
+
+.echo-flash.visible {
+  opacity: 1;
+  animation: echoGhost 420ms ease-out 1;
 }
 
 .hidden-flash.visible {
@@ -191,6 +237,18 @@ body {
   text-align: right;
 }
 
+.archive-box {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.archive-trail {
+  color: rgba(96, 135, 121, 0.38);
+  font-size: 0.74em;
+  letter-spacing: 0.11em;
+}
+
 .main-signal {
   grid-column: 1;
   grid-row: 2;
@@ -228,11 +286,38 @@ body {
 }
 
 .tracking-state,
+.signal-stage,
 .conversion-line {
   color: var(--cyan);
   font-size: clamp(0.76rem, 1vw, 0.98rem);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.signal-stage {
+  color: var(--stage-ink, rgba(153, 214, 190, 0.72));
+  letter-spacing: 0.18em;
+}
+
+.signal-stage::before {
+  content: "STATE: ";
+  color: rgba(96, 135, 121, 0.5);
+}
+
+.terminal[data-stage="weak"] {
+  --stage-ink: rgba(150, 209, 184, 0.55);
+}
+
+.terminal[data-stage="partial"] {
+  --stage-ink: rgba(67, 196, 190, 0.64);
+}
+
+.terminal[data-stage="forming"] {
+  --stage-ink: rgba(120, 207, 160, 0.72);
+}
+
+.terminal[data-stage="final"] {
+  --stage-ink: rgba(190, 244, 222, 0.84);
 }
 
 .tracking-state::after {
@@ -290,35 +375,79 @@ body {
   max-width: min(890px, 100%);
 }
 
-.goal-track {
+.frequency-locator {
   position: relative;
-  height: clamp(18px, 2.3vw, 28px);
+  width: min(910px, 100%);
+  height: clamp(54px, 8vw, 108px);
   overflow: hidden;
   border: 1px solid rgba(93, 174, 150, 0.22);
   background:
-    repeating-linear-gradient(90deg, rgba(153, 214, 190, 0.08) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(153, 214, 190, 0.08) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(0deg, rgba(153, 214, 190, 0.04) 0 1px, transparent 1px 12px),
     rgba(0, 0, 0, 0.44);
   box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.58);
 }
 
-.goal-track i {
-  display: block;
+.frequency-locator::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0.3;
+  background: linear-gradient(90deg, rgba(90, 184, 132, 0.12), rgba(54, 196, 194, 0.07) var(--lock, 29%), transparent var(--lock, 29%));
+}
+
+.frequency-peaks {
+  position: absolute;
+  inset: 10px 10px 12px;
+  display: flex;
+  align-items: end;
+  gap: 2px;
+}
+
+.frequency-peaks span {
+  flex: 1 1 0;
+  min-width: 2px;
+  height: var(--peak, 28%);
+  opacity: var(--peak-alpha, 0.25);
+  background: linear-gradient(180deg, rgba(94, 177, 255, 0.38), rgba(90, 184, 132, 0.18));
+  box-shadow: 0 0 8px rgba(54, 196, 194, 0.1);
+  transform-origin: bottom;
+  animation: peakFloat var(--peak-speed, 2.8s) ease-in-out infinite;
+  animation-delay: var(--peak-delay, 0s);
+}
+
+.capture-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
   width: 29%;
-  height: 100%;
+  height: 3px;
   background: linear-gradient(90deg, rgba(90, 184, 132, 0.44), rgba(54, 196, 194, 0.5), rgba(115, 73, 164, 0.22));
   box-shadow: 0 0 22px rgba(54, 196, 194, 0.16);
   transition: width 1800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.goal-track em {
+.frequency-scanner {
   position: absolute;
-  top: -40%;
-  bottom: -40%;
+  top: 0;
+  bottom: 0;
   left: -15%;
-  width: 18%;
-  background: linear-gradient(90deg, transparent, rgba(193, 246, 224, 0.16), transparent);
-  transform: skewX(-18deg);
-  animation: sweepSignal 3.8s ease-in-out infinite;
+  width: 2px;
+  background: rgba(193, 246, 224, 0.46);
+  box-shadow:
+    0 0 16px rgba(54, 196, 194, 0.34),
+    10px 0 0 rgba(54, 196, 194, 0.06),
+    -10px 0 0 rgba(115, 73, 164, 0.08);
+  animation: sweepSignal 3.4s ease-in-out infinite;
+}
+
+.frequency-locator b {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: rgba(190, 244, 222, 0.5);
+  font-size: clamp(0.75rem, 1vw, 1rem);
+  font-weight: 650;
 }
 
 .goal-meta {
@@ -473,15 +602,15 @@ body {
 }
 
 @keyframes tubeBreath {
-  0%, 100% { filter: blur(0.14px) saturate(0.82) brightness(0.62); }
-  50% { filter: blur(0.32px) saturate(0.9) brightness(0.74); }
+  0%, 100% { filter: blur(0.16px) saturate(0.78) brightness(0.58); }
+  50% { filter: blur(0.28px) saturate(0.86) brightness(0.68); }
 }
 
 @keyframes frameLag {
   0%, 100% { transform: translate3d(0, 0, 0); }
-  20% { transform: translate3d(9px, -2px, 0) skewX(-0.3deg); }
-  42% { transform: translate3d(-12px, 1px, 0) skewX(0.4deg); }
-  64% { transform: translate3d(5px, 0, 0); }
+  20% { transform: translate3d(3px, -1px, 0) skewX(-0.12deg); }
+  42% { transform: translate3d(-4px, 1px, 0) skewX(0.14deg); }
+  64% { transform: translate3d(2px, 0, 0); }
 }
 
 @keyframes noiseShift {
@@ -513,6 +642,37 @@ body {
   60% { transform: translateX(-10px); filter: blur(0.8px); }
 }
 
+@keyframes echoGhost {
+  0% { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.98); }
+  22% { opacity: 0.42; transform: translate3d(1px, 0, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(-2px, -5px, 0) scale(1.01); }
+}
+
+@keyframes datamoshBreak {
+  0%, 100% {
+    clip-path: inset(18% 0 38% 0);
+    transform: translate3d(0, -2%, 0) scaleY(1.05);
+    filter: hue-rotate(0deg) contrast(1.1);
+  }
+
+  25% {
+    clip-path: inset(8% 0 28% 0);
+    transform: translate3d(-1.2%, 4%, 0) scaleY(1.2);
+    filter: hue-rotate(12deg) contrast(1.28);
+  }
+
+  55% {
+    clip-path: inset(26% 0 12% 0);
+    transform: translate3d(1.4%, -6%, 0) scaleY(1.38);
+    filter: hue-rotate(-18deg) contrast(1.34);
+  }
+
+  78% {
+    clip-path: inset(3% 0 52% 0);
+    transform: translate3d(-0.6%, 3%, 0) scaleY(1.12);
+  }
+}
+
 @keyframes slowDrift {
   0%, 100% { transform: translate3d(0, 0, 0); }
   36% { transform: translate3d(4px, -3px, 0); }
@@ -536,6 +696,11 @@ body {
   18% { opacity: 0.85; }
   60% { opacity: 0.45; }
   100% { left: 106%; opacity: 0; }
+}
+
+@keyframes peakFloat {
+  0%, 100% { transform: scaleY(0.74); opacity: 0.14; }
+  50% { transform: scaleY(1); opacity: var(--peak-alpha, 0.25); }
 }
 
 @keyframes signalBars {

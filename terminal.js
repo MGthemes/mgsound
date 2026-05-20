@@ -18,8 +18,11 @@ const CONFIG = {
   nodeGoal: Number(PARAMS.get("goal")) || 1000,
   hiddenFramesEnabled: PARAMS.get("hidden") !== "0",
   previewFlash: PARAMS.get("flash") === "preview",
+  previewEcho: PARAMS.get("echo") === "preview",
   firstHiddenFrameMs: PARAMS.has("flash") ? [900, 1400] : [18000, 42000],
-  hiddenFrameEveryMs: [32000, 76000],
+  firstEchoFrameMs: PARAMS.has("echo") ? [900, 1400] : [5000, 9000],
+  hiddenFrameEveryMs: [42000, 86000],
+  echoFrameEveryMs: [12000, 28000],
   hiddenFrameDurationMs: [34, 620],
   messages: [
     "MGS_TRANSMISSION // SIGNAL FOUND",
@@ -71,12 +74,16 @@ const CONFIG = {
 };
 
 const terminal = document.querySelector(".terminal");
+const datamosh = document.querySelector("#datamosh");
 const archiveEntry = document.querySelector("#archiveEntry");
+const archiveTrail = document.querySelector("#archiveTrail");
 const mainMessage = document.querySelector("#mainMessage");
 const trackingState = document.querySelector("#trackingState");
+const signalStage = document.querySelector("#signalStage");
 const connectionLog = document.querySelector("#connectionLog");
 const listenerLine = document.querySelector("#listenerLine");
 const statusLine = document.querySelector("#statusLine");
+const echoFlash = document.querySelector("#echoFlash");
 const hiddenFlash = document.querySelector("#hiddenFlash");
 const signalQuality = document.querySelector("#signalQuality");
 const archiveLoading = document.querySelector("#archiveLoading");
@@ -87,11 +94,15 @@ const nodeText = document.querySelector("#nodeText");
 const followerCount = document.querySelector("#followerCount");
 const goalCount = document.querySelector("#goalCount");
 const goalFill = document.querySelector("#goalFill");
+const frequencyLocator = document.querySelector("#frequencyLocator");
+const frequencyPeaks = document.querySelector("#frequencyPeaks");
+const captureText = document.querySelector("#captureText");
 const progressLine = document.querySelector("#progressLine");
 const remainingLine = document.querySelector("#remainingLine");
 
 let followers = CONFIG.followerCount;
 let lastMessage = "";
+let liveEchoLines = [];
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -111,6 +122,20 @@ function progressPercent() {
 
 function remainingFollowers() {
   return Math.max(0, CONFIG.nodeGoal - followers);
+}
+
+function archiveNumber(value, offset = 0) {
+  const size = Math.max(3, String(value).length);
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return value;
+  return String(Math.max(0, parsed + offset)).padStart(size, "0");
+}
+
+function stageFor(percent) {
+  if (percent < 30) return { key: "weak", label: "WEAK SIGNAL" };
+  if (percent < 60) return { key: "partial", label: "PARTIAL LOCK" };
+  if (percent < 90) return { key: "forming", label: "CHANNEL FORMING" };
+  return { key: "final", label: "FINAL NODE OPENING" };
 }
 
 function renderTemplate(text) {
@@ -173,15 +198,36 @@ function textBar(percent, length = 8) {
   return "█".repeat(filled) + "░".repeat(length - filled);
 }
 
+function renderFrequencyPeaks(percent = progressPercent()) {
+  const count = 84;
+  const lockIndex = Math.round((percent / 100) * count);
+  const nodes = Array.from({ length: count }, (_, index) => {
+    const peak = document.createElement("span");
+    const distance = Math.abs(index - lockIndex);
+    const focus = Math.max(0, 1 - distance / 18);
+    const random = Math.random();
+    const height = Math.round(10 + random * 42 + focus * 50);
+    peak.style.setProperty("--peak", `${height}%`);
+    peak.style.setProperty("--peak-alpha", String(0.14 + random * 0.18 + focus * 0.24));
+    peak.style.setProperty("--peak-speed", `${(2.1 + random * 2.4).toFixed(2)}s`);
+    peak.style.setProperty("--peak-delay", `${(-random * 2.8).toFixed(2)}s`);
+    return peak;
+  });
+  frequencyPeaks.replaceChildren(...nodes);
+}
+
 function updateGoal() {
   const node = progressPercent();
   const remaining = remainingFollowers();
   const signal = randomBetween(34, 68);
   const followLock = Math.max(6, Math.min(100, node + randomBetween(-3, 7)));
+  const stage = stageFor(node);
 
   followerCount.textContent = formatNumber(followers);
   goalCount.textContent = formatNumber(CONFIG.nodeGoal);
   goalFill.style.width = `${node}%`;
+  frequencyLocator.style.setProperty("--lock", `${node}%`);
+  captureText.textContent = `${node}% CAPTURE`;
   signalQuality.style.width = `${signal}%`;
   archiveLoading.style.width = `${followLock}%`;
   nodeExpansion.style.width = `${node}%`;
@@ -192,6 +238,8 @@ function updateGoal() {
   remainingLine.textContent = remaining
     ? `${formatNumber(remaining)} SUBS UNTIL NODE OPENS`
     : "NODE OPEN // SIGNAL COMPLETE";
+  terminal.dataset.stage = stage.key;
+  signalStage.textContent = stage.label;
   listenerLine.textContent = `${formatNumber(followers)} followers connected`;
   statusLine.textContent = randomItem([
     "searching signal",
@@ -206,6 +254,10 @@ function updateGoal() {
     "ANALOG FOLLOW TRACE ACTIVE",
     "SUBSCRIBER SIGNAL TRACKING",
   ]);
+
+  if (Math.random() < 0.45) {
+    renderFrequencyPeaks(node);
+  }
 }
 
 function scheduleBars() {
@@ -215,8 +267,7 @@ function scheduleBars() {
 
 function flashHiddenFrame() {
   if (!CONFIG.hiddenFramesEnabled) return;
-  const lines = Math.random() < 0.62 ? CONFIG.openChannelLines : CONFIG.hiddenFrames;
-  hiddenFlash.textContent = renderTemplate(randomItem(lines));
+  hiddenFlash.textContent = renderTemplate(randomItem(CONFIG.hiddenFrames));
   hiddenFlash.classList.add("visible");
 
   const oneFrame = Math.random() < 0.38;
@@ -236,10 +287,47 @@ function scheduleHiddenFrame(initial = false) {
   window.setTimeout(flashHiddenFrame, randomBetween(min, max));
 }
 
+function echoLine() {
+  if (liveEchoLines.length && Math.random() < 0.72) {
+    return randomItem(liveEchoLines);
+  }
+
+  return randomItem(CONFIG.openChannelLines);
+}
+
+function flashEchoFrame() {
+  const line = echoLine();
+  echoFlash.textContent = typeof line === "string" ? line : `${line.text}\n${line.handle}`;
+  echoFlash.classList.add("visible");
+  const duration = CONFIG.previewEcho ? 3600 : randomBetween(220, 620);
+  window.setTimeout(() => echoFlash.classList.remove("visible"), duration);
+  if (Math.random() < 0.45) triggerDatamosh();
+  scheduleEchoFrame();
+}
+
+function scheduleEchoFrame(initial = false) {
+  const [min, max] = initial ? CONFIG.firstEchoFrameMs : CONFIG.echoFrameEveryMs;
+  window.setTimeout(flashEchoFrame, randomBetween(min, max));
+}
+
+function triggerDatamosh() {
+  datamosh.style.setProperty("--smash-top", `${randomBetween(0, 34)}%`);
+  datamosh.style.setProperty("--smash-bottom", `${randomBetween(8, 55)}%`);
+  datamosh.style.setProperty("--smash-x", `${randomBetween(-10, 10)}px`);
+  datamosh.style.setProperty("--smash-y", `${randomBetween(-28, 18)}px`);
+  datamosh.classList.remove("active");
+  void datamosh.offsetWidth;
+  datamosh.classList.add("active");
+  window.setTimeout(() => datamosh.classList.remove("active"), randomBetween(340, 720));
+}
+
 function scheduleAnalogLag() {
-  terminal.classList.add("lagging");
-  window.setTimeout(() => terminal.classList.remove("lagging"), randomBetween(160, 620));
-  window.setTimeout(scheduleAnalogLag, randomBetween(2800, 6800));
+  if (Math.random() < 0.32) {
+    terminal.classList.add("lagging");
+    window.setTimeout(() => terminal.classList.remove("lagging"), randomBetween(120, 360));
+  }
+  if (Math.random() < 0.82) triggerDatamosh();
+  window.setTimeout(scheduleAnalogLag, randomBetween(2400, 6400));
 }
 
 async function refreshLiveStats() {
@@ -251,6 +339,13 @@ async function refreshLiveStats() {
     const nextFollowers = Number(data.stats?.followers);
     if (response.ok && data.ok && Number.isFinite(nextFollowers)) {
       followers = nextFollowers;
+      liveEchoLines = (data.comments || [])
+        .map((comment) => ({
+          text: comment.text || "",
+          handle: comment.handle ? `@${comment.handle}` : comment.author || "",
+        }))
+        .filter((comment) => comment.text)
+        .slice(0, 5);
       updateGoal();
     }
   } catch (error) {
@@ -260,7 +355,9 @@ async function refreshLiveStats() {
 
 function init() {
   archiveEntry.textContent = `ARCHIVE ENTRY #${CONFIG.archiveEntry}`;
+  archiveTrail.textContent = `#${archiveNumber(CONFIG.archiveEntry, -1)} / #${archiveNumber(CONFIG.archiveEntry)} / #${archiveNumber(CONFIG.archiveEntry, 1)}`;
   setMessage(CONFIG.messages[0]);
+  renderFrequencyPeaks(progressPercent());
   updateGoal();
 
   [
@@ -273,6 +370,7 @@ function init() {
   scheduleLog();
   scheduleBars();
   scheduleHiddenFrame(true);
+  scheduleEchoFrame(true);
   scheduleAnalogLag();
   refreshLiveStats();
   window.setInterval(refreshLiveStats, 3000);

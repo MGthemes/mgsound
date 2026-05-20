@@ -33,6 +33,7 @@ http://127.0.0.1:8787/transmission-terminal?archive=024&listeners=293&goal=1000&
 ```
 
 You can also use `followers=293` instead of `listeners=293`. Use `live=0` to keep the manual follower count. Leave it out to pull followers from `/api/stats` every 3 seconds.
+Use `archive=025` for the next video/archive entry, `flash=preview` to preview lore flashes, and `echo=preview` to preview soft comment echoes.
 
 ## Deploy
 

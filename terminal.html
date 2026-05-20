@@ -10,7 +10,9 @@
     <main class="terminal" aria-label="MGS music transmission terminal">
       <div class="vhs-noise" aria-hidden="true"></div>
       <div class="scanlines" aria-hidden="true"></div>
+      <div id="datamosh" class="datamosh" aria-hidden="true"></div>
       <div class="tear-line" aria-hidden="true"></div>
+      <div id="echoFlash" class="echo-flash" aria-hidden="true"></div>
       <div id="hiddenFlash" class="hidden-flash" aria-hidden="true"></div>
 
       <header class="top-row">
@@ -18,13 +20,17 @@
           <span>MGS_TRANSMISSION</span>
           <i>SIGNAL FOUND</i>
         </div>
-        <div id="archiveEntry" class="archive">ARCHIVE ENTRY #024</div>
+        <div class="archive-box">
+          <div id="archiveEntry" class="archive">ARCHIVE ENTRY #024</div>
+          <div id="archiveTrail" class="archive-trail">#023 / #024 / #025</div>
+        </div>
       </header>
 
       <section class="main-signal" aria-live="polite">
         <div class="signal-kicker">
           <div id="mainMessage" class="message">MGS_TRANSMISSION // SIGNAL FOUND</div>
           <div id="trackingState" class="tracking-state">SEARCHING FOLLOW SIGNAL</div>
+          <div id="signalStage" class="signal-stage">WEAK SIGNAL</div>
         </div>
 
         <div class="goal-readout">
@@ -38,11 +44,14 @@
           </div>
         </div>
 
+        <div id="frequencyLocator" class="frequency-locator" aria-label="Follower signal locator">
+          <div id="frequencyPeaks" class="frequency-peaks" aria-hidden="true"></div>
+          <i id="goalFill" class="capture-fill" aria-hidden="true"></i>
+          <em class="frequency-scanner" aria-hidden="true"></em>
+          <b id="captureText">29%</b>
+        </div>
+
         <div class="goal-progress">
-          <div class="goal-track">
-            <i id="goalFill"></i>
-            <em aria-hidden="true"></em>
-          </div>
           <div class="goal-meta">
             <span id="progressLine">29% SIGNAL LOCKED</span>
             <span id="remainingLine">707 SUBS UNTIL NODE OPENS</span>
