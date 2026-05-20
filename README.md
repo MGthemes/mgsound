@@ -32,7 +32,7 @@ Quick terminal config via URL:
 http://127.0.0.1:8787/transmission-terminal?archive=024&listeners=293&goal=1000&live=0&users=@night_signal,@lost_archive
 ```
 
-Use `live=0` to keep the manual listener count. Leave it out to pull followers from `/api/stats`.
+You can also use `followers=293` instead of `listeners=293`. Use `live=0` to keep the manual follower count. Leave it out to pull followers from `/api/stats` every 3 seconds.
 
 ## Deploy
 

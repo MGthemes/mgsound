@@ -22,18 +22,52 @@
       </header>
 
       <section class="main-signal" aria-live="polite">
-        <div id="mainMessage" class="message">MGS_TRANSMISSION<br>SIGNAL FOUND</div>
-        <div class="cursor" aria-hidden="true"></div>
+        <div class="signal-kicker">
+          <div id="mainMessage" class="message">MGS_TRANSMISSION // SIGNAL FOUND</div>
+          <div id="trackingState" class="tracking-state">SEARCHING FOLLOW SIGNAL</div>
+        </div>
+
+        <div class="goal-readout">
+          <div class="current-node">
+            <span>FOLLOWERS CONNECTED</span>
+            <strong id="followerCount">293</strong>
+          </div>
+          <div class="target-node">
+            <span>NEXT NODE</span>
+            <b id="goalCount">1000</b>
+          </div>
+        </div>
+
+        <div class="goal-progress">
+          <div class="goal-track">
+            <i id="goalFill"></i>
+            <em aria-hidden="true"></em>
+          </div>
+          <div class="goal-meta">
+            <span id="progressLine">29% SIGNAL LOCKED</span>
+            <span id="remainingLine">707 SUBS UNTIL NODE OPENS</span>
+          </div>
+        </div>
+
+        <div class="signal-search" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <i></i>
+        </div>
+
+        <div class="conversion-line">
+          FOLLOW @mg_sound1 TO STABILIZE THE TRANSMISSION
+        </div>
       </section>
 
       <section class="progress-stack" aria-label="Signal progress">
         <div class="bar-line">
-          <span>SIGNAL QUALITY:</span>
+          <span>SIGNAL SEARCH:</span>
           <div class="bar"><i id="signalQuality"></i></div>
           <b id="signalText">███░░░░░</b>
         </div>
         <div class="bar-line">
-          <span>ARCHIVE LOADING...</span>
+          <span>FOLLOW LOCK...</span>
           <div class="bar"><i id="archiveLoading"></i></div>
           <b id="archiveText">███░░░░░░</b>
         </div>
@@ -49,15 +83,10 @@
         <div id="connectionLog" class="log-stream"></div>
       </aside>
 
-      <aside class="comment-feed" aria-label="Atmospheric feed">
-        <div class="panel-title">OPEN CHANNEL</div>
-        <div id="commentFeed" class="feed-stream"></div>
-      </aside>
-
       <footer class="bottom-row">
-        <span id="listenerLine">293 listeners connected</span>
-        <span id="statusLine">playback stable</span>
-        <a href="/mg-sound" aria-label="Open follower goal">NODE: 1000</a>
+        <span id="listenerLine">293 followers connected</span>
+        <span id="statusLine">searching signal</span>
+        <a href="/mg-sound" aria-label="Open follower goal">FOLLOW NODE: 1000</a>
       </footer>
     </main>
 
