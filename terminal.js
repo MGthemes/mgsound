@@ -16,14 +16,18 @@ const CONFIG = {
   followerCount: Number(PARAMS.get("followers") || PARAMS.get("listeners")) || 293,
   useLiveFollowers: PARAMS.get("live") !== "0",
   nodeGoal: Number(PARAMS.get("goal")) || 1000,
+  intensity: PARAMS.get("intensity") || localStorage.getItem("mgs_intensity") || "normal",
+  palette: PARAMS.get("color") || localStorage.getItem("mgs_palette") || "green",
   hiddenFramesEnabled: PARAMS.get("hidden") !== "0",
   previewFlash: PARAMS.get("flash") === "preview",
   previewEcho: PARAMS.get("echo") === "preview",
   firstHiddenFrameMs: PARAMS.has("flash") ? [900, 1400] : [18000, 42000],
-  firstEchoFrameMs: PARAMS.has("echo") ? [900, 1400] : [5000, 9000],
-  hiddenFrameEveryMs: [42000, 86000],
-  echoFrameEveryMs: [12000, 28000],
-  hiddenFrameDurationMs: [34, 620],
+  firstEchoFrameMs: PARAMS.has("echo") ? [900, 1400] : [4000, 8000],
+  hiddenFrameEveryMs: [54000, 120000],
+  echoFrameEveryMs: [7000, 15000],
+  hiddenFrameDurationMs: [34, 96],
+  rebootEnabled: PARAMS.get("reboot") !== "0",
+  rebootEveryMs: PARAMS.get("reboot") === "preview" ? [900, 1400] : [25000, 33000],
   messages: [
     "MGS_TRANSMISSION // SIGNAL FOUND",
     "FOLLOW SIGNAL DETECTED",
@@ -75,6 +79,12 @@ const CONFIG = {
 
 const terminal = document.querySelector(".terminal");
 const datamosh = document.querySelector("#datamosh");
+const signalWarp = document.querySelector("#signalWarp");
+const ghostLayer = document.querySelector("#ghostLayer");
+const rebootOverlay = document.querySelector("#rebootOverlay");
+const darkToggle = document.querySelector("#darkToggle");
+const greenTheme = document.querySelector("#greenTheme");
+const blueTheme = document.querySelector("#blueTheme");
 const archiveEntry = document.querySelector("#archiveEntry");
 const archiveTrail = document.querySelector("#archiveTrail");
 const mainMessage = document.querySelector("#mainMessage");
@@ -83,7 +93,6 @@ const signalStage = document.querySelector("#signalStage");
 const connectionLog = document.querySelector("#connectionLog");
 const listenerLine = document.querySelector("#listenerLine");
 const statusLine = document.querySelector("#statusLine");
-const echoFlash = document.querySelector("#echoFlash");
 const hiddenFlash = document.querySelector("#hiddenFlash");
 const signalQuality = document.querySelector("#signalQuality");
 const archiveLoading = document.querySelector("#archiveLoading");
@@ -110,6 +119,36 @@ function randomItem(items) {
 
 function randomBetween(min, max) {
   return Math.round(min + Math.random() * (max - min));
+}
+
+function applyDisplayMode() {
+  const intensity = CONFIG.intensity === "dark" ? "dark" : "normal";
+  const palette = CONFIG.palette === "blue" ? "blue" : "green";
+  terminal.dataset.intensity = intensity;
+  terminal.dataset.palette = palette;
+  darkToggle.setAttribute("aria-pressed", String(intensity === "dark"));
+  greenTheme.setAttribute("aria-pressed", String(palette === "green"));
+  blueTheme.setAttribute("aria-pressed", String(palette === "blue"));
+}
+
+function bindControls() {
+  darkToggle.addEventListener("click", () => {
+    CONFIG.intensity = CONFIG.intensity === "dark" ? "normal" : "dark";
+    localStorage.setItem("mgs_intensity", CONFIG.intensity);
+    applyDisplayMode();
+  });
+
+  greenTheme.addEventListener("click", () => {
+    CONFIG.palette = "green";
+    localStorage.setItem("mgs_palette", CONFIG.palette);
+    applyDisplayMode();
+  });
+
+  blueTheme.addEventListener("click", () => {
+    CONFIG.palette = "blue";
+    localStorage.setItem("mgs_palette", CONFIG.palette);
+    applyDisplayMode();
+  });
 }
 
 function formatNumber(value) {
@@ -254,10 +293,6 @@ function updateGoal() {
     "ANALOG FOLLOW TRACE ACTIVE",
     "SUBSCRIBER SIGNAL TRACKING",
   ]);
-
-  if (Math.random() < 0.45) {
-    renderFrequencyPeaks(node);
-  }
 }
 
 function scheduleBars() {
@@ -295,19 +330,63 @@ function echoLine() {
   return randomItem(CONFIG.openChannelLines);
 }
 
-function flashEchoFrame() {
+function ghostPosition() {
+  const zones = window.innerWidth < window.innerHeight
+    ? [
+        { x: [54, 76], y: [18, 29] },
+        { x: [56, 76], y: [48, 60] },
+        { x: [10, 34], y: [66, 78] },
+        { x: [46, 72], y: [73, 84] },
+      ]
+    : [
+        { x: [48, 62], y: [13, 25] },
+        { x: [52, 64], y: [50, 65] },
+        { x: [14, 34], y: [68, 78] },
+        { x: [72, 88], y: [72, 82] },
+        { x: [36, 52], y: [8, 18] },
+      ];
+  const zone = randomItem(zones);
+  return {
+    x: randomBetween(zone.x[0], zone.x[1]),
+    y: randomBetween(zone.y[0], zone.y[1]),
+  };
+}
+
+function spawnGhostComment() {
   const line = echoLine();
-  echoFlash.textContent = typeof line === "string" ? line : `${line.text}\n${line.handle}`;
-  echoFlash.classList.add("visible");
-  const duration = CONFIG.previewEcho ? 3600 : randomBetween(220, 620);
-  window.setTimeout(() => echoFlash.classList.remove("visible"), duration);
-  if (Math.random() < 0.45) triggerDatamosh();
+  const ghost = document.createElement("div");
+  const position = ghostPosition();
+  const duration = CONFIG.previewEcho ? 5200 : randomBetween(3200, 6400);
+  const size = randomBetween(110, 250) / 100;
+  ghost.className = "ghost-comment";
+
+  if (typeof line === "string") {
+    ghost.textContent = line;
+  } else {
+    ghost.textContent = line.text;
+    if (line.handle) {
+      const handle = document.createElement("b");
+      handle.textContent = line.handle;
+      ghost.append(handle);
+    }
+  }
+
+  ghost.style.left = `${position.x}%`;
+  ghost.style.top = `${position.y}%`;
+  ghost.style.setProperty("--ghost-size", `clamp(${size * 0.62}rem, ${size}vw, ${size * 1.45}rem)`);
+  ghost.style.setProperty("--ghost-duration", `${duration}ms`);
+  ghost.style.setProperty("--ghost-opacity", String(randomBetween(26, 46) / 100));
+  ghost.style.setProperty("--ghost-drift-x", `${randomBetween(-18, 18)}px`);
+  ghostLayer.append(ghost);
+  window.setTimeout(() => ghost.remove(), duration + 500);
+
+  if (Math.random() < 0.32) triggerDatamosh();
   scheduleEchoFrame();
 }
 
 function scheduleEchoFrame(initial = false) {
   const [min, max] = initial ? CONFIG.firstEchoFrameMs : CONFIG.echoFrameEveryMs;
-  window.setTimeout(flashEchoFrame, randomBetween(min, max));
+  window.setTimeout(spawnGhostComment, randomBetween(min, max));
 }
 
 function triggerDatamosh() {
@@ -321,13 +400,74 @@ function triggerDatamosh() {
   window.setTimeout(() => datamosh.classList.remove("active"), randomBetween(340, 720));
 }
 
-function scheduleAnalogLag() {
-  if (Math.random() < 0.32) {
-    terminal.classList.add("lagging");
-    window.setTimeout(() => terminal.classList.remove("lagging"), randomBetween(120, 360));
+function triggerSignalWarp() {
+  const direction = Math.random() < 0.5 ? "active-down" : "active-up";
+  signalWarp.classList.remove("active-down", "active-up");
+  terminal.classList.remove("warping");
+  void signalWarp.offsetWidth;
+  signalWarp.classList.add(direction);
+  terminal.classList.add("warping");
+  window.setTimeout(() => {
+    signalWarp.classList.remove(direction);
+    terminal.classList.remove("warping");
+  }, 1350);
+}
+
+function triggerColorSplit() {
+  terminal.classList.remove("color-split");
+  void terminal.offsetWidth;
+  terminal.classList.add("color-split");
+  window.setTimeout(() => terminal.classList.remove("color-split"), 1350);
+}
+
+function triggerReboot() {
+  if (!CONFIG.rebootEnabled) return;
+  terminal.classList.add("rebooting");
+  rebootOverlay.classList.add("active");
+  refreshLiveStats();
+  window.setTimeout(() => {
+    rebootOverlay.classList.remove("active");
+    terminal.classList.remove("rebooting");
+    updateGoal();
+  }, 4000);
+  scheduleReboot();
+}
+
+function scheduleReboot() {
+  if (!CONFIG.rebootEnabled) return;
+  const [min, max] = CONFIG.rebootEveryMs;
+  window.setTimeout(triggerReboot, randomBetween(min, max));
+}
+
+function scheduleAnalogLag(initial = false) {
+  if (initial) {
+    window.setTimeout(() => scheduleAnalogLag(), randomBetween(1800, 4200));
+    return;
   }
-  if (Math.random() < 0.82) triggerDatamosh();
-  window.setTimeout(scheduleAnalogLag, randomBetween(2400, 6400));
+  if (Math.random() < 0.18) {
+    terminal.classList.add("lagging");
+    window.setTimeout(() => terminal.classList.remove("lagging"), randomBetween(90, 220));
+  }
+  triggerDatamosh();
+  window.setTimeout(scheduleAnalogLag, randomBetween(2800, 7200));
+}
+
+function scheduleSignalWarp(initial = false) {
+  if (initial) {
+    window.setTimeout(() => scheduleSignalWarp(), randomBetween(6500, 12000));
+    return;
+  }
+  triggerSignalWarp();
+  window.setTimeout(scheduleSignalWarp, randomBetween(9000, 17000));
+}
+
+function scheduleColorSplit(initial = false) {
+  if (initial) {
+    window.setTimeout(() => scheduleColorSplit(), randomBetween(12000, 22000));
+    return;
+  }
+  triggerColorSplit();
+  window.setTimeout(scheduleColorSplit, randomBetween(15000, 31000));
 }
 
 async function refreshLiveStats() {
@@ -354,6 +494,8 @@ async function refreshLiveStats() {
 }
 
 function init() {
+  applyDisplayMode();
+  bindControls();
   archiveEntry.textContent = `ARCHIVE ENTRY #${CONFIG.archiveEntry}`;
   archiveTrail.textContent = `#${archiveNumber(CONFIG.archiveEntry, -1)} / #${archiveNumber(CONFIG.archiveEntry)} / #${archiveNumber(CONFIG.archiveEntry, 1)}`;
   setMessage(CONFIG.messages[0]);
@@ -371,7 +513,10 @@ function init() {
   scheduleBars();
   scheduleHiddenFrame(true);
   scheduleEchoFrame(true);
-  scheduleAnalogLag();
+  scheduleAnalogLag(true);
+  scheduleSignalWarp(true);
+  scheduleColorSplit(true);
+  scheduleReboot();
   refreshLiveStats();
   window.setInterval(refreshLiveStats, 3000);
 }

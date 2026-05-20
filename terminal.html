@@ -11,14 +11,26 @@
       <div class="vhs-noise" aria-hidden="true"></div>
       <div class="scanlines" aria-hidden="true"></div>
       <div id="datamosh" class="datamosh" aria-hidden="true"></div>
+      <div id="signalWarp" class="signal-warp" aria-hidden="true"></div>
       <div class="tear-line" aria-hidden="true"></div>
-      <div id="echoFlash" class="echo-flash" aria-hidden="true"></div>
+      <div id="ghostLayer" class="ghost-layer" aria-hidden="true"></div>
       <div id="hiddenFlash" class="hidden-flash" aria-hidden="true"></div>
+      <div id="rebootOverlay" class="reboot-overlay" aria-hidden="true">
+        <span>MGS_RELAY_BOOT</span>
+        <span>sync.follow_node()</span>
+        <span>freq.scan: active</span>
+        <span>archive.cache: restored</span>
+      </div>
 
       <header class="top-row">
         <div class="system-id">
           <span>MGS_TRANSMISSION</span>
           <i>SIGNAL FOUND</i>
+        </div>
+        <div class="control-panel" aria-label="Display controls">
+          <button id="darkToggle" class="control-button dim-button" type="button" aria-label="Toggle darker display" title="Darker display"><span></span></button>
+          <button id="greenTheme" class="control-button theme-button green" type="button" aria-label="Green phosphor" title="Green phosphor"><span></span></button>
+          <button id="blueTheme" class="control-button theme-button blue" type="button" aria-label="Blue phosphor" title="Blue phosphor"><span></span></button>
         </div>
         <div class="archive-box">
           <div id="archiveEntry" class="archive">ARCHIVE ENTRY #024</div>
