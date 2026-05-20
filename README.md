@@ -1,6 +1,6 @@
 # MG Sound Statistics
 
-Two small TikTok dashboards for `@mg_sound1`.
+Three small TikTok dashboards for `@mg_sound1`.
 
 ## Local Run
 
@@ -19,6 +19,20 @@ Open the follower-goal CRT dashboard:
 ```text
 http://127.0.0.1:8787/mg-sound
 ```
+
+Open the fullscreen transmission terminal:
+
+```text
+http://127.0.0.1:8787/transmission-terminal
+```
+
+Quick terminal config via URL:
+
+```text
+http://127.0.0.1:8787/transmission-terminal?archive=024&listeners=293&goal=1000&live=0&users=@night_signal,@lost_archive
+```
+
+Use `live=0` to keep the manual listener count. Leave it out to pull followers from `/api/stats`.
 
 ## Deploy
 

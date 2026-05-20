@@ -10,7 +10,7 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
 try:
@@ -26,6 +26,7 @@ USERNAME = "mg_sound1"
 APP_NAME = "MG Sound Statistics"
 STATS_PATH = "/mg-sound-statistics"
 GOAL_PATH = "/mg-sound"
+TERMINAL_PATH = "/transmission-terminal"
 LEGACY_GOAL_PATH = "/teamg-sound"
 CACHE_TTL_SECONDS = 3
 COMMENTS_TTL_SECONDS = 60
@@ -404,23 +405,26 @@ class StatsHandler(SimpleHTTPRequestHandler):
         print(f"[{timestamp}] {format % args}")
 
     def do_GET(self):
-        if self.path.startswith("/api/stats"):
+        route_path = urlsplit(self.path).path
+        if route_path.startswith("/api/stats"):
             self.send_stats()
             return
-        if self.path == "/":
+        if route_path == "/":
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", STATS_PATH)
             self.end_headers()
             return
-        if self.path == LEGACY_GOAL_PATH:
+        if route_path == LEGACY_GOAL_PATH:
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", GOAL_PATH)
             self.end_headers()
             return
-        if self.path == STATS_PATH:
+        if route_path == STATS_PATH:
             self.path = "/stats.html"
-        elif self.path == GOAL_PATH:
+        elif route_path == GOAL_PATH:
             self.path = "/teamg.html"
+        elif route_path == TERMINAL_PATH:
+            self.path = "/terminal.html"
         super().do_GET()
 
     def send_stats(self):
@@ -448,6 +452,7 @@ def main():
     shown_host = "127.0.0.1" if host == "0.0.0.0" else host
     print(f"{APP_NAME} is running at http://{shown_host}:{port}{STATS_PATH}")
     print(f"mg sound is running at http://{shown_host}:{port}{GOAL_PATH}")
+    print(f"MGS transmission terminal is running at http://{shown_host}:{port}{TERMINAL_PATH}")
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MGS Transmission Terminal</title>
+    <link rel="stylesheet" href="terminal.css">
+  </head>
+  <body>
+    <main class="terminal" aria-label="MGS music transmission terminal">
+      <div class="vhs-noise" aria-hidden="true"></div>
+      <div class="scanlines" aria-hidden="true"></div>
+      <div class="tear-line" aria-hidden="true"></div>
+      <div id="hiddenFlash" class="hidden-flash" aria-hidden="true"></div>
+
+      <header class="top-row">
+        <div class="system-id">
+          <span>MGS_TRANSMISSION</span>
+          <i>SIGNAL FOUND</i>
+        </div>
+        <div id="archiveEntry" class="archive">ARCHIVE ENTRY #024</div>
+      </header>
+
+      <section class="main-signal" aria-live="polite">
+        <div id="mainMessage" class="message">MGS_TRANSMISSION<br>SIGNAL FOUND</div>
+        <div class="cursor" aria-hidden="true"></div>
+      </section>
+
+      <section class="progress-stack" aria-label="Signal progress">
+        <div class="bar-line">
+          <span>SIGNAL QUALITY:</span>
+          <div class="bar"><i id="signalQuality"></i></div>
+          <b id="signalText">███░░░░░</b>
+        </div>
+        <div class="bar-line">
+          <span>ARCHIVE LOADING...</span>
+          <div class="bar"><i id="archiveLoading"></i></div>
+          <b id="archiveText">███░░░░░░</b>
+        </div>
+        <div class="bar-line">
+          <span>NODE EXPANSION:</span>
+          <div class="bar"><i id="nodeExpansion"></i></div>
+          <b id="nodeText">29%</b>
+        </div>
+      </section>
+
+      <aside class="connection-log" aria-label="Live connection log">
+        <div class="panel-title">LIVE CONNECTION LOG</div>
+        <div id="connectionLog" class="log-stream"></div>
+      </aside>
+
+      <aside class="comment-feed" aria-label="Atmospheric feed">
+        <div class="panel-title">OPEN CHANNEL</div>
+        <div id="commentFeed" class="feed-stream"></div>
+      </aside>
+
+      <footer class="bottom-row">
+        <span id="listenerLine">293 listeners connected</span>
+        <span id="statusLine">playback stable</span>
+        <a href="/mg-sound" aria-label="Open follower goal">NODE: 1000</a>
+      </footer>
+    </main>
+
+    <script src="terminal.js"></script>
+  </body>
+</html>
