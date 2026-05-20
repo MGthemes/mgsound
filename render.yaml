@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mg-sound-statistics
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: HOST=0.0.0.0 python server.py
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"

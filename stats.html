@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MG Sound Statistics</title>
+    <link rel="stylesheet" href="stats.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="profile">
+        <img id="avatar" class="avatar" alt="MGS avatar">
+        <div class="identity">
+          <a class="handle" href="https://www.tiktok.com/@mg_sound1" target="_blank" rel="noreferrer">@mg_sound1</a>
+          <h1>MG Sound Statistics</h1>
+          <p id="nickname" class="nickname">MGS</p>
+        </div>
+        <nav class="header-actions" aria-label="Навигация">
+          <a class="nav-link" href="/mg-sound">Goal</a>
+          <div class="live-pill">
+            <span></span>
+            Live
+          </div>
+        </nav>
+      </header>
+
+      <section class="grid" aria-label="TikTok live stats">
+        <article class="stat">
+          <p>Лайки</p>
+          <strong data-stat="likes">0</strong>
+        </article>
+        <article class="stat">
+          <p>Просмотры</p>
+          <strong data-stat="views">0</strong>
+        </article>
+        <article class="stat">
+          <p>Комментарии</p>
+          <strong data-stat="comments">0</strong>
+        </article>
+        <article class="stat">
+          <p>Шеры</p>
+          <strong data-stat="shares">0</strong>
+        </article>
+        <article class="stat">
+          <p>Подписчики</p>
+          <strong data-stat="followers">0</strong>
+        </article>
+        <article class="stat">
+          <p>Подписки</p>
+          <strong data-stat="following">0</strong>
+        </article>
+        <article class="stat accent">
+          <p>ER</p>
+          <strong data-stat="er" data-format="percent">0%</strong>
+        </article>
+      </section>
+
+      <footer class="meta">
+        <span id="status">Загрузка live count...</span>
+        <span id="coverage"></span>
+      </footer>
+
+      <section class="comments" aria-labelledby="commentsTitle">
+        <div class="section-heading">
+          <h2 id="commentsTitle">Последние комментарии</h2>
+          <span id="commentsStatus">Загрузка...</span>
+        </div>
+        <div id="commentsList" class="comments-list"></div>
+      </section>
+    </main>
+
+    <script src="stats.js"></script>
+  </body>
+</html>
