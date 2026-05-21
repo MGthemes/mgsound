@@ -42,6 +42,7 @@ ROOT = Path(__file__).resolve().parent
 DAILY_BASELINE_PATH = ROOT / "daily-baseline.json"
 DAILY_BASELINE_TZ = os.environ.get("DAILY_BASELINE_TZ", "America/Los_Angeles")
 DELTA_STAT_KEYS = ("likes", "views", "comments", "shares", "followers", "following", "videos", "saves", "er")
+VIDEO_DELTA_KEYS = ("views", "likes", "comments", "shares", "saves", "interactions")
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -75,6 +76,53 @@ def today_key():
     return datetime.now().date().isoformat()
 
 
+def daily_timezone():
+    if ZoneInfo is not None:
+        try:
+            return ZoneInfo(DAILY_BASELINE_TZ)
+        except Exception:
+            return None
+    return None
+
+
+def local_day_from_datetime(value):
+    zone = daily_timezone()
+    if zone is not None:
+        value = value.astimezone(zone)
+    return value.date().isoformat()
+
+
+def video_published_at(entry):
+    timestamp = parse_int(
+        entry.get("timestamp")
+        or entry.get("release_timestamp")
+        or entry.get("created_timestamp")
+    )
+    if timestamp:
+        return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+
+    upload_date = str(entry.get("upload_date") or "").strip()
+    if re.fullmatch(r"\d{8}", upload_date):
+        try:
+            return datetime.strptime(upload_date, "%Y%m%d").replace(tzinfo=timezone.utc).isoformat()
+        except ValueError:
+            return ""
+
+    return ""
+
+
+def video_published_day(published_at):
+    if not published_at:
+        return ""
+    try:
+        value = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return local_day_from_datetime(value)
+
+
 def read_daily_baseline():
     try:
         with DAILY_BASELINE_PATH.open("r", encoding="utf-8") as file:
@@ -89,26 +137,75 @@ def read_daily_baseline():
     return data
 
 
+def persist_daily_baseline(baseline):
+    try:
+        with DAILY_BASELINE_PATH.open("w", encoding="utf-8") as file:
+            json.dump(baseline, file, ensure_ascii=False, indent=2)
+    except OSError as exc:
+        print(f"Could not write daily baseline: {exc}")
+
+
 def write_daily_baseline(day, stats):
     payload = {
         "date": day,
         "stats": {},
+        "videos": {},
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     payload["stats"] = {
         key: round(float(stats.get(key) or 0), 4)
         for key in DELTA_STAT_KEYS
     }
-    try:
-        with DAILY_BASELINE_PATH.open("w", encoding="utf-8") as file:
-            json.dump(payload, file, ensure_ascii=False, indent=2)
-    except OSError as exc:
-        print(f"Could not write daily baseline: {exc}")
+    persist_daily_baseline(payload)
     return payload
 
 
-def get_today_delta(stats):
+def video_key(video):
+    return str(video.get("id") or video.get("url") or "").strip()
+
+
+def video_stat_value(video, key):
+    if key == "interactions":
+        return (
+            parse_int(video.get("likes"))
+            + parse_int(video.get("comments"))
+            + parse_int(video.get("shares"))
+            + parse_int(video.get("saves"))
+        )
+    return parse_int(video.get(key))
+
+
+def video_stat_snapshot(video, zero=False):
+    return {
+        key: 0 if zero else video_stat_value(video, key)
+        for key in VIDEO_DELTA_KEYS
+    }
+
+
+def build_video_baseline_entry(video, day):
+    published_today = video.get("publishedDay") == day
+    snapshot = video_stat_snapshot(video, zero=published_today)
+    return {
+        **snapshot,
+        "title": video.get("title") or "",
+        "url": video.get("url") or "",
+        "publishedAt": video.get("publishedAt") or "",
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def video_delta_from_baseline(video, baseline_entry):
+    return {
+        key: round(video_stat_value(video, key) - float(baseline_entry.get(key) or 0), 4)
+        for key in VIDEO_DELTA_KEYS
+    }
+
+
+def get_today_delta(stats, videos=None):
     day = today_key()
+    videos = videos or []
+    video_deltas = {}
+
     with daily_baseline_lock:
         baseline = read_daily_baseline()
         if not baseline or baseline.get("date") != day:
@@ -126,10 +223,42 @@ def get_today_delta(stats):
             except OSError as exc:
                 print(f"Could not update daily baseline: {exc}")
 
-    return {
+        baseline_videos = baseline.get("videos")
+        if not isinstance(baseline_videos, dict):
+            baseline_videos = {}
+            baseline["videos"] = baseline_videos
+
+        baseline_changed = False
+        for video in videos:
+            key = video_key(video)
+            if not key:
+                continue
+
+            baseline_entry = baseline_videos.get(key)
+            if not isinstance(baseline_entry, dict):
+                baseline_entry = build_video_baseline_entry(video, day)
+                baseline_videos[key] = baseline_entry
+                baseline_changed = True
+            else:
+                for stat_key in VIDEO_DELTA_KEYS:
+                    if stat_key not in baseline_entry:
+                        baseline_entry[stat_key] = video_stat_value(video, stat_key)
+                        baseline_changed = True
+                for meta_key in ("title", "url", "publishedAt"):
+                    if not baseline_entry.get(meta_key) and video.get(meta_key):
+                        baseline_entry[meta_key] = video.get(meta_key)
+                        baseline_changed = True
+
+            video_deltas[key] = video_delta_from_baseline(video, baseline_entry)
+
+        if baseline_changed:
+            persist_daily_baseline(baseline)
+
+    stat_delta = {
         key: round(float(stats.get(key) or 0) - float(baseline_stats.get(key) or 0), 4)
         for key in DELTA_STAT_KEYS
-    }, day
+    }
+    return stat_delta, video_deltas, day
 
 
 def fetch_profile(username):
@@ -172,6 +301,35 @@ def fetch_profile(username):
     }
 
 
+def normalize_video_entry(entry, username):
+    video_id = str(entry.get("id") or "").strip()
+    video_url = entry.get("url") or entry.get("webpage_url") or ""
+    if video_url and not str(video_url).startswith("http") and video_id:
+        video_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
+    if not video_url and video_id:
+        video_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
+
+    likes = parse_int(entry.get("like_count"))
+    comments = parse_int(entry.get("comment_count"))
+    shares = parse_int(entry.get("repost_count") or entry.get("share_count"))
+    saves = parse_int(entry.get("save_count"))
+    published_at = video_published_at(entry)
+
+    return {
+        "id": video_id,
+        "title": entry.get("title") or "",
+        "url": video_url,
+        "views": parse_int(entry.get("view_count")),
+        "likes": likes,
+        "comments": comments,
+        "shares": shares,
+        "saves": saves,
+        "interactions": likes + comments + shares + saves,
+        "publishedAt": published_at,
+        "publishedDay": video_published_day(published_at),
+    }
+
+
 def fetch_video_totals(username):
     if YoutubeDL is None:
         raise RuntimeError(f"yt-dlp is not available: {YTDLP_IMPORT_ERROR}")
@@ -190,46 +348,43 @@ def fetch_video_totals(username):
         info = ydl.extract_info(f"https://www.tiktok.com/@{username}", download=False)
 
     entries = [entry for entry in info.get("entries", []) if entry]
+    videos = [normalize_video_entry(entry, username) for entry in entries]
 
     def total(field):
-        return sum(parse_int(entry.get(field)) for entry in entries)
+        return sum(parse_int(video.get(field)) for video in videos)
 
     latest = []
     comment_sources = []
 
-    for entry in entries[:COMMENT_VIDEO_LIMIT]:
-        video_id = entry.get("id") or ""
-        video_url = entry.get("url") or entry.get("webpage_url")
-        if not video_url and video_id:
-            video_url = f"https://www.tiktok.com/@{username}/video/{video_id}"
-
-        if video_url:
+    for video in videos[:COMMENT_VIDEO_LIMIT]:
+        if video["url"]:
             comment_sources.append(
                 {
-                    "id": video_id,
-                    "title": entry.get("title") or "",
-                    "url": video_url,
+                    "id": video["id"],
+                    "title": video["title"],
+                    "url": video["url"],
                 }
             )
 
-    for entry in entries[:3]:
+    for video in videos[:3]:
         latest.append(
             {
-                "id": entry.get("id"),
-                "title": entry.get("title") or "",
-                "url": entry.get("url") or entry.get("webpage_url") or "",
-                "views": parse_int(entry.get("view_count")),
-                "likes": parse_int(entry.get("like_count")),
+                "id": video["id"],
+                "title": video["title"],
+                "url": video["url"],
+                "views": video["views"],
+                "likes": video["likes"],
             }
         )
 
     return {
-        "videosSeen": len(entries),
-        "views": total("view_count"),
-        "likes": total("like_count"),
-        "comments": total("comment_count"),
-        "shares": total("repost_count"),
-        "saves": total("save_count"),
+        "videosSeen": len(videos),
+        "views": total("views"),
+        "likes": total("likes"),
+        "comments": total("comments"),
+        "shares": total("shares"),
+        "saves": total("saves"),
+        "videos": videos,
         "latest": latest,
         "commentSources": comment_sources,
     }
@@ -362,6 +517,59 @@ def get_latest_comments(video_sources):
         comments_refresh_lock.release()
 
 
+def build_top_videos_today(videos, video_deltas):
+    ranked = []
+
+    for video in videos:
+        key = video_key(video)
+        delta = dict(video_deltas.get(key) or {})
+        for stat_key in VIDEO_DELTA_KEYS:
+            delta[stat_key] = max(0, round(float(delta.get(stat_key) or 0), 4))
+
+        interactions = (
+            delta["likes"]
+            + delta["comments"]
+            + delta["shares"]
+            + delta["saves"]
+        )
+        delta["interactions"] = interactions
+        score = delta["views"] + interactions * 10
+
+        ranked.append(
+            {
+                "id": video.get("id") or "",
+                "title": video.get("title") or "Видео без названия",
+                "url": video.get("url") or "",
+                "publishedAt": video.get("publishedAt") or "",
+                "stats": {
+                    "views": video.get("views") or 0,
+                    "likes": video.get("likes") or 0,
+                    "comments": video.get("comments") or 0,
+                    "shares": video.get("shares") or 0,
+                    "saves": video.get("saves") or 0,
+                    "interactions": video.get("interactions") or 0,
+                },
+                "delta": delta,
+                "score": round(score, 4),
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            item["score"],
+            item["delta"]["views"],
+            item["delta"]["interactions"],
+            item["stats"]["views"],
+        ),
+        reverse=True,
+    )
+
+    for index, item in enumerate(ranked[:5], start=1):
+        item["rank"] = index
+
+    return ranked[:5]
+
+
 def create_payload():
     profile = fetch_profile(USERNAME)
     videos = fetch_video_totals(USERNAME)
@@ -385,7 +593,8 @@ def create_payload():
         "saves": videos["saves"],
         "er": round(engagement_rate, 2),
     }
-    today_delta, today_delta_date = get_today_delta(stats)
+    today_delta, video_today_delta, today_delta_date = get_today_delta(stats, videos["videos"])
+    top_today = build_top_videos_today(videos["videos"], video_today_delta)
 
     return {
         "ok": True,
@@ -399,6 +608,7 @@ def create_payload():
         "stats": stats,
         "todayDelta": today_delta,
         "todayDeltaDate": today_delta_date,
+        "topToday": top_today,
         "coverage": {
             "videosSeen": videos["videosSeen"],
             "videosTotal": profile["videos"],

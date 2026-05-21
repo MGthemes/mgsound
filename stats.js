@@ -15,10 +15,13 @@ const avatar = document.querySelector("#avatar");
 const nickname = document.querySelector("#nickname");
 const statusLine = document.querySelector("#status");
 const coverageLine = document.querySelector("#coverage");
+const topVideosList = document.querySelector("#topVideosList");
+const topVideosStatus = document.querySelector("#topVideosStatus");
 const commentsList = document.querySelector("#commentsList");
 const commentsStatus = document.querySelector("#commentsStatus");
 let loading = false;
 let lastCommentIds = [];
+let lastTopVideoIds = [];
 
 function formatNumber(value) {
   return formatter.format(Math.max(0, Number(value) || 0));
@@ -106,6 +109,85 @@ function formatCommentTime(iso) {
   }).format(new Date(iso));
 }
 
+function formatSignedCount(value) {
+  const number = Number(value) || 0;
+  const sign = number < 0 ? "-" : "+";
+  return `${sign}${formatter.format(Math.abs(Math.round(number)))}`;
+}
+
+function renderTopVideos(videos = []) {
+  if (!topVideosList || !topVideosStatus) return;
+
+  if (!videos.length) {
+    topVideosStatus.textContent = "Нет данных";
+    topVideosList.replaceChildren();
+    return;
+  }
+
+  const hasMomentum = videos.some((video) => Number(video.score) > 0);
+  const maxScore = Math.max(...videos.map((video) => Number(video.score) || 0), 1);
+  const nextIds = videos.map((video) => video.id || video.url).filter(Boolean);
+
+  const nodes = videos.map((video, index) => {
+    const delta = video.delta || {};
+    const score = Math.max(0, Number(video.score) || 0);
+    const item = document.createElement("article");
+    item.className = "top-video";
+    if (!lastTopVideoIds.includes(video.id || video.url) && hasMomentum) {
+      item.classList.add("is-new");
+    }
+
+    const rank = document.createElement("span");
+    rank.className = "top-video-rank";
+    rank.textContent = `#${video.rank || index + 1}`;
+
+    const body = document.createElement("div");
+    body.className = "top-video-body";
+
+    const title = document.createElement(video.url ? "a" : "span");
+    title.className = "top-video-title";
+    title.textContent = video.title || "Видео без названия";
+    if (video.url) {
+      title.href = video.url;
+      title.target = "_blank";
+      title.rel = "noreferrer";
+    }
+
+    const metrics = document.createElement("div");
+    metrics.className = "top-video-metrics";
+
+    const views = document.createElement("span");
+    views.innerHTML = `<b>${formatSignedCount(delta.views)}</b> просмотры`;
+
+    const interactions = document.createElement("span");
+    interactions.innerHTML = `<b>${formatSignedCount(delta.interactions)}</b> взаимодействия`;
+
+    const details = document.createElement("span");
+    details.className = "top-video-details";
+    details.textContent = [
+      `${formatSignedCount(delta.likes)} лайки`,
+      `${formatSignedCount(delta.comments)} комм.`,
+      `${formatSignedCount(delta.shares)} шеры`,
+    ].join(" · ");
+
+    metrics.append(views, interactions, details);
+
+    const bar = document.createElement("div");
+    bar.className = "top-video-bar";
+    const fill = document.createElement("span");
+    fill.style.width = hasMomentum ? `${Math.max(4, (score / maxScore) * 100)}%` : "0%";
+    bar.append(fill);
+
+    body.append(title, metrics, bar);
+    item.append(rank, body);
+    return item;
+  });
+
+  topVideosList.replaceChildren(...nodes);
+  topVideosStatus.textContent = hasMomentum ? `${videos.length}/5` : "жду прирост";
+  lastTopVideoIds = nextIds;
+}
+
 function renderComments(comments = []) {
   if (!comments.length) {
     commentsStatus.textContent = "Нет данных";
@@ -190,6 +272,7 @@ async function loadStats() {
     const stale = data.stale ? "данные из кэша, " : "";
     statusLine.textContent = `${stale}обновлено ${formatTime(data.updatedAt)}`;
     coverageLine.textContent = `${data.coverage.videosSeen}/${data.coverage.videosTotal} видео`;
+    renderTopVideos(data.topToday || []);
     renderComments(data.comments || []);
   } catch (error) {
     statusLine.textContent = error.message;

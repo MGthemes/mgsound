@@ -218,6 +218,7 @@ h1 {
   font-size: 0.9rem;
 }
 
+.top-videos,
 .comments {
   margin-top: 34px;
 }
@@ -240,6 +241,106 @@ h1 {
 .section-heading span {
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.top-videos-list {
+  display: grid;
+  gap: 10px;
+}
+
+.top-video {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 14px;
+  align-items: start;
+  min-height: 104px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--panel-strong), var(--panel));
+}
+
+.top-video.is-new {
+  animation: commentIn 600ms ease both;
+}
+
+.top-video-rank {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(32, 213, 210, 0.24);
+  border-radius: 8px;
+  background: rgba(32, 213, 210, 0.07);
+  color: var(--cyan);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-video-body {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.top-video-title {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.top-video-title:hover {
+  color: var(--cyan);
+}
+
+.top-video-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.top-video-metrics span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.top-video-metrics b {
+  color: var(--cyan);
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.top-video-details {
+  opacity: 0.78;
+}
+
+.top-video-bar {
+  position: relative;
+  overflow: hidden;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.top-video-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(32, 213, 210, 0.88), rgba(255, 59, 92, 0.56));
+  box-shadow: 0 0 18px rgba(32, 213, 210, 0.22);
+  transition: width 800ms ease;
 }
 
 .comments-list {
@@ -409,6 +510,16 @@ h1 {
 
   .comment {
     grid-template-columns: 36px 1fr;
+  }
+
+  .top-video {
+    grid-template-columns: 42px 1fr;
+    gap: 10px;
+  }
+
+  .top-video-rank {
+    width: 32px;
+    height: 32px;
   }
 
   .comment-avatar {
