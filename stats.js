@@ -7,6 +7,9 @@ const state = {};
 const elements = Object.fromEntries(
   [...document.querySelectorAll("[data-stat]")].map((node) => [node.dataset.stat, node])
 );
+const deltaElements = Object.fromEntries(
+  [...document.querySelectorAll("[data-delta]")].map((node) => [node.dataset.delta, node])
+);
 
 const avatar = document.querySelector("#avatar");
 const nickname = document.querySelector("#nickname");
@@ -27,6 +30,28 @@ function formatValue(node, value) {
   }
 
   return formatNumber(value);
+}
+
+function formatDelta(node, value) {
+  const number = Number(value) || 0;
+  const sign = number < 0 ? "-" : "+";
+  const absolute = Math.abs(number);
+
+  if (node.dataset.format === "percent") {
+    return `Сегодня ${sign}${percentFormatter.format(absolute)} п.п.`;
+  }
+
+  return `Сегодня ${sign}${formatter.format(Math.round(absolute))}`;
+}
+
+function renderDeltas(delta = {}) {
+  Object.entries(deltaElements).forEach(([key, node]) => {
+    const value = Number(delta[key]) || 0;
+    node.textContent = formatDelta(node, value);
+    node.classList.toggle("is-positive", value > 0);
+    node.classList.toggle("is-negative", value < 0);
+    node.title = "Прирост от первого замера за сегодня";
+  });
 }
 
 function animateValue(key, nextValue) {
@@ -160,6 +185,7 @@ async function loadStats() {
     if (data.account?.nickname) nickname.textContent = data.account.nickname;
 
     Object.entries(data.stats || {}).forEach(([key, value]) => animateValue(key, value));
+    renderDeltas(data.todayDelta || {});
 
     const stale = data.stale ? "данные из кэша, " : "";
     statusLine.textContent = `${stale}обновлено ${formatTime(data.updatedAt)}`;

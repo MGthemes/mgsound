@@ -21,6 +21,11 @@ except ImportError as exc:
 else:
     YTDLP_IMPORT_ERROR = None
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
+
 
 USERNAME = "mg_sound1"
 APP_NAME = "MG Sound Statistics"
@@ -34,6 +39,9 @@ COMMENT_VIDEO_LIMIT = 8
 COMMENT_REQUEST_DELAY_SECONDS = 1.15
 PLAYLIST_LIMIT = 200
 ROOT = Path(__file__).resolve().parent
+DAILY_BASELINE_PATH = ROOT / "daily-baseline.json"
+DAILY_BASELINE_TZ = os.environ.get("DAILY_BASELINE_TZ", "America/Los_Angeles")
+DELTA_STAT_KEYS = ("likes", "views", "comments", "shares", "followers", "following", "videos", "saves", "er")
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -47,6 +55,7 @@ cache = {"fetched_at": 0.0, "payload": None}
 comments_cache_lock = threading.Lock()
 comments_refresh_lock = threading.Lock()
 comments_cache = {"fetched_at": 0.0, "items": []}
+daily_baseline_lock = threading.Lock()
 
 
 def parse_int(value):
@@ -55,6 +64,72 @@ def parse_int(value):
     if isinstance(value, (int, float)):
         return int(value)
     return int(str(value).replace(",", "").strip() or 0)
+
+
+def today_key():
+    if ZoneInfo is not None:
+        try:
+            return datetime.now(ZoneInfo(DAILY_BASELINE_TZ)).date().isoformat()
+        except Exception:
+            pass
+    return datetime.now().date().isoformat()
+
+
+def read_daily_baseline():
+    try:
+        with DAILY_BASELINE_PATH.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(data, dict):
+        return None
+    if not isinstance(data.get("stats"), dict):
+        return None
+    return data
+
+
+def write_daily_baseline(day, stats):
+    payload = {
+        "date": day,
+        "stats": {},
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+    }
+    payload["stats"] = {
+        key: round(float(stats.get(key) or 0), 4)
+        for key in DELTA_STAT_KEYS
+    }
+    try:
+        with DAILY_BASELINE_PATH.open("w", encoding="utf-8") as file:
+            json.dump(payload, file, ensure_ascii=False, indent=2)
+    except OSError as exc:
+        print(f"Could not write daily baseline: {exc}")
+    return payload
+
+
+def get_today_delta(stats):
+    day = today_key()
+    with daily_baseline_lock:
+        baseline = read_daily_baseline()
+        if not baseline or baseline.get("date") != day:
+            baseline = write_daily_baseline(day, stats)
+
+        baseline_stats = baseline.get("stats") or {}
+        missing_keys = [key for key in DELTA_STAT_KEYS if key not in baseline_stats]
+        if missing_keys:
+            for key in missing_keys:
+                baseline_stats[key] = round(float(stats.get(key) or 0), 4)
+            baseline["stats"] = baseline_stats
+            try:
+                with DAILY_BASELINE_PATH.open("w", encoding="utf-8") as file:
+                    json.dump(baseline, file, ensure_ascii=False, indent=2)
+            except OSError as exc:
+                print(f"Could not update daily baseline: {exc}")
+
+    return {
+        key: round(float(stats.get(key) or 0) - float(baseline_stats.get(key) or 0), 4)
+        for key in DELTA_STAT_KEYS
+    }, day
 
 
 def fetch_profile(username):
@@ -299,6 +374,18 @@ def create_payload():
         if videos["views"]
         else 0
     )
+    stats = {
+        "likes": likes,
+        "views": videos["views"],
+        "comments": videos["comments"],
+        "shares": videos["shares"],
+        "followers": profile["followers"],
+        "following": profile["following"],
+        "videos": profile["videos"],
+        "saves": videos["saves"],
+        "er": round(engagement_rate, 2),
+    }
+    today_delta, today_delta_date = get_today_delta(stats)
 
     return {
         "ok": True,
@@ -309,17 +396,9 @@ def create_payload():
             "bio": profile["bio"],
             "profileUrl": profile["profileUrl"],
         },
-        "stats": {
-            "likes": likes,
-            "views": videos["views"],
-            "comments": videos["comments"],
-            "shares": videos["shares"],
-            "followers": profile["followers"],
-            "following": profile["following"],
-            "videos": profile["videos"],
-            "saves": videos["saves"],
-            "er": round(engagement_rate, 2),
-        },
+        "stats": stats,
+        "todayDelta": today_delta,
+        "todayDeltaDate": today_delta_date,
         "coverage": {
             "videosSeen": videos["videosSeen"],
             "videosTotal": profile["videos"],
