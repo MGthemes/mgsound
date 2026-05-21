@@ -27,6 +27,7 @@ const CONFIG = {
   echoFrameEveryMs: [7000, 15000],
   hiddenFrameDurationMs: [34, 96],
   rebootEnabled: PARAMS.get("reboot") !== "0",
+  previewReboot: PARAMS.get("reboot") === "preview",
   rebootEveryMs: PARAMS.get("reboot") === "preview" ? [900, 1400] : [25000, 33000],
   messages: [
     "MGS_TRANSMISSION // SIGNAL FOUND",
@@ -82,6 +83,7 @@ const datamosh = document.querySelector("#datamosh");
 const signalWarp = document.querySelector("#signalWarp");
 const ghostLayer = document.querySelector("#ghostLayer");
 const rebootOverlay = document.querySelector("#rebootOverlay");
+const bootStream = document.querySelector("#bootStream");
 const darkToggle = document.querySelector("#darkToggle");
 const greenTheme = document.querySelector("#greenTheme");
 const blueTheme = document.querySelector("#blueTheme");
@@ -112,6 +114,27 @@ const remainingLine = document.querySelector("#remainingLine");
 let followers = CONFIG.followerCount;
 let lastMessage = "";
 let liveEchoLines = [];
+
+const BOOT_LINES = [
+  "sync.follow_node({followers}/{goal})",
+  "carrier.scan --band=mg_sound --lock={progress}%",
+  "archive.entry #{archive} handshake accepted",
+  "subscribers.left = {remaining}",
+  "vhs.clock drift corrected +00.021",
+  "node.cache restore /tmp/mgs/follow.lock",
+  "signal.locator sweep_channel[03]",
+  "crt.phosphor warmup: stable",
+  "comment.echo buffer rebuilt",
+  "freq.range 29.97hz -> 30.01hz",
+  "transmission.relay reconnecting",
+  "boot.sequence open_channel=true",
+  "datamosh.frame repair skipped",
+  "analog tear compensation online",
+  "follow.intent pulse detected",
+  "listener.shadow index refreshed",
+  "goal.node {goal} awaiting lock",
+  "mgs_terminal reboot vector ok",
+];
 
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
@@ -179,6 +202,7 @@ function stageFor(percent) {
 
 function renderTemplate(text) {
   return text
+    .replaceAll("{archive}", CONFIG.archiveEntry)
     .replaceAll("{followers}", formatNumber(followers))
     .replaceAll("{progress}", String(progressPercent()))
     .replaceAll("{remaining}", formatNumber(remainingFollowers()))
@@ -420,17 +444,47 @@ function triggerColorSplit() {
   window.setTimeout(() => terminal.classList.remove("color-split"), 1350);
 }
 
+function populateRebootStream() {
+  if (!bootStream) return;
+
+  const lineCount = window.innerWidth < 760 ? 30 : 46;
+  const nodes = Array.from({ length: lineCount }, (_, index) => {
+    const line = document.createElement("span");
+    const columnShift = index % 3 === 0 ? 4 : index % 3 === 1 ? 18 : 38;
+    const top = randomBetween(4, 92);
+    const delay = randomBetween(0, 3600);
+    const speed = randomBetween(1200, 2600);
+    const opacity = randomBetween(42, 82) / 100;
+    const size = randomBetween(78, 112) / 100;
+
+    line.className = "boot-line";
+    if (Math.random() < 0.18) line.classList.add("is-hot");
+    line.textContent = renderTemplate(randomItem(BOOT_LINES));
+    line.style.setProperty("--boot-left", `${columnShift + randomBetween(-6, 10)}%`);
+    line.style.setProperty("--boot-top", `${top}%`);
+    line.style.setProperty("--boot-delay", `${delay}ms`);
+    line.style.setProperty("--boot-speed", `${speed}ms`);
+    line.style.setProperty("--boot-opacity", String(opacity));
+    line.style.setProperty("--boot-size", `${size}em`);
+    return line;
+  });
+
+  bootStream.replaceChildren(...nodes);
+}
+
 function triggerReboot() {
   if (!CONFIG.rebootEnabled) return;
+  populateRebootStream();
   terminal.classList.add("rebooting");
   rebootOverlay.classList.add("active");
   refreshLiveStats();
   window.setTimeout(() => {
     rebootOverlay.classList.remove("active");
     terminal.classList.remove("rebooting");
+    if (bootStream) bootStream.replaceChildren();
     updateGoal();
-  }, 4000);
-  scheduleReboot();
+  }, 4600);
+  if (!CONFIG.previewReboot) scheduleReboot();
 }
 
 function scheduleReboot() {
@@ -516,7 +570,11 @@ function init() {
   scheduleAnalogLag(true);
   scheduleSignalWarp(true);
   scheduleColorSplit(true);
-  scheduleReboot();
+  if (CONFIG.previewReboot) {
+    window.setTimeout(triggerReboot, 120);
+  } else {
+    scheduleReboot();
+  }
   refreshLiveStats();
   window.setInterval(refreshLiveStats, 3000);
 }
