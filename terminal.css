@@ -1,9 +1,9 @@
 :root {
   color-scheme: dark;
   --bg: #010302;
-  --ink: rgba(166, 226, 204, 0.84);
-  --ink-strong: rgba(208, 255, 234, 0.94);
-  --dim: rgba(122, 163, 147, 0.64);
+  --ink: rgba(178, 232, 212, 0.88);
+  --ink-strong: rgba(224, 255, 239, 0.98);
+  --dim: rgba(132, 180, 160, 0.72);
   --ghost: rgba(92, 142, 128, 0.25);
   --line: rgba(104, 196, 166, 0.24);
   --cyan: rgba(70, 214, 207, 0.56);
@@ -11,8 +11,8 @@
   --green: rgba(105, 210, 151, 0.68);
   --red: rgba(185, 58, 82, 0.26);
   --tube-sat: 0.92;
-  --tube-bright-low: 0.74;
-  --tube-bright-high: 0.9;
+  --tube-bright-low: 0.82;
+  --tube-bright-high: 0.99;
   --accent-solid: #86f0b7;
   --accent-soft: rgba(105, 210, 151, 0.34);
   --accent-glow: rgba(70, 214, 207, 0.2);
@@ -44,7 +44,7 @@ body {
   min-height: 100svh;
   padding: clamp(14px, 2.2vw, 34px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 31vw);
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 25vw);
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: clamp(14px, 2vw, 26px);
   overflow: hidden;
@@ -359,7 +359,7 @@ body {
   min-height: 0;
   display: grid;
   align-content: center;
-  gap: clamp(14px, 2vw, 26px);
+  gap: clamp(12px, 1.65vw, 22px);
   transform: translate3d(0, 0, 0);
   animation: slowDrift 15s ease-in-out infinite;
 }
@@ -374,7 +374,7 @@ body {
   color: rgba(193, 246, 224, 0.64);
   overflow-wrap: normal;
   word-break: normal;
-  font-size: clamp(0.86rem, 1.45vw, 1.65rem);
+  font-size: clamp(0.92rem, 1.62vw, 1.82rem);
   font-weight: 740;
   line-height: 1.1;
   text-transform: uppercase;
@@ -433,7 +433,7 @@ body {
 
 .goal-readout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(112px, clamp(118px, 13vw, 184px));
+  grid-template-columns: minmax(0, 1fr) minmax(124px, clamp(138px, 15vw, 210px));
   align-items: end;
   gap: clamp(12px, 2.4vw, 36px);
   width: 100%;
@@ -447,6 +447,16 @@ body {
   gap: 8px;
 }
 
+.target-node {
+  justify-self: end;
+  padding: clamp(8px, 1vw, 13px);
+  border: 1px solid rgba(104, 196, 166, 0.2);
+  background:
+    linear-gradient(90deg, rgba(70, 214, 207, 0.08), rgba(0, 0, 0, 0.18)),
+    rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 22px rgba(70, 214, 207, 0.045);
+}
+
 .current-node span,
 .target-node span {
   color: var(--dim);
@@ -457,7 +467,7 @@ body {
 
 .current-node strong {
   color: var(--ink-strong);
-  font-size: clamp(5.8rem, 17vw, 15.2rem);
+  font-size: clamp(6.4rem, 18.8vw, 16.6rem);
   font-weight: 820;
   line-height: 0.76;
   text-shadow:
@@ -466,11 +476,26 @@ body {
     0 0 34px rgba(90, 184, 132, 0.13);
 }
 
+.signal-prompt {
+  width: fit-content;
+  margin-top: clamp(2px, 0.4vw, 8px);
+  padding: 6px 9px;
+  border: 1px solid rgba(104, 196, 166, 0.24);
+  background: rgba(70, 214, 207, 0.06);
+  color: rgba(224, 255, 239, 0.82);
+  font-size: clamp(0.82rem, 1.16vw, 1.16rem);
+  font-style: normal;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-shadow: 0 0 16px var(--accent-glow);
+}
+
 .target-node b {
   color: rgba(193, 246, 224, 0.62);
   max-width: 100%;
   overflow: hidden;
-  font-size: clamp(1.8rem, 4vw, 4.05rem);
+  font-size: clamp(2.1rem, 4.55vw, 4.7rem);
   font-weight: 780;
   line-height: 0.9;
   white-space: nowrap;
@@ -485,7 +510,7 @@ body {
 .frequency-locator {
   position: relative;
   width: min(910px, 100%);
-  height: clamp(54px, 8vw, 108px);
+  height: clamp(66px, 9.4vw, 122px);
   overflow: hidden;
   border: 1px solid rgba(93, 174, 150, 0.22);
   background:
@@ -494,7 +519,7 @@ body {
     rgba(0, 0, 0, 0.44);
   box-shadow:
     inset 0 0 18px rgba(0, 0, 0, 0.58),
-    0 0 18px rgba(70, 214, 207, 0.08);
+    0 0 24px rgba(70, 214, 207, 0.12);
 }
 
 .frequency-locator::before {
@@ -535,8 +560,8 @@ body {
   width: 29%;
   height: 100%;
   background:
-    linear-gradient(90deg, rgba(105, 210, 151, 0.22), rgba(70, 214, 207, 0.2), rgba(115, 73, 164, 0.1)),
-    repeating-linear-gradient(90deg, rgba(208, 255, 234, 0.12) 0 1px, transparent 1px 16px);
+    linear-gradient(90deg, rgba(105, 210, 151, 0.32), rgba(70, 214, 207, 0.28), rgba(115, 73, 164, 0.13)),
+    repeating-linear-gradient(90deg, rgba(208, 255, 234, 0.16) 0 1px, transparent 1px 16px);
   box-shadow:
     inset -2px 0 0 rgba(208, 255, 234, 0.34),
     0 0 24px var(--accent-glow);
@@ -574,8 +599,8 @@ body {
   z-index: 4;
   right: 10px;
   bottom: 8px;
-  color: rgba(208, 255, 234, 0.74);
-  font-size: clamp(0.82rem, 1.12vw, 1.08rem);
+  color: rgba(224, 255, 239, 0.88);
+  font-size: clamp(0.95rem, 1.32vw, 1.24rem);
   font-weight: 760;
   text-shadow: 0 0 12px var(--accent-glow);
 }
@@ -584,8 +609,8 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  color: var(--dim);
-  font-size: clamp(0.72rem, 1.1vw, 1rem);
+  color: rgba(178, 232, 212, 0.74);
+  font-size: clamp(0.8rem, 1.22vw, 1.12rem);
   text-transform: uppercase;
 }
 
@@ -627,7 +652,14 @@ body {
 
 .conversion-line {
   max-width: 840px;
-  color: rgba(90, 184, 132, 0.68);
+  width: fit-content;
+  padding: 8px 10px;
+  border: 1px solid rgba(104, 196, 166, 0.22);
+  background: rgba(70, 214, 207, 0.055);
+  color: rgba(224, 255, 239, 0.78);
+  font-size: clamp(0.86rem, 1.24vw, 1.18rem);
+  font-weight: 740;
+  text-shadow: 0 0 18px var(--accent-glow);
 }
 
 .progress-stack {
@@ -680,6 +712,7 @@ body {
   border-left: 1px solid var(--line);
   padding-left: clamp(14px, 1.8vw, 26px);
   overflow: hidden;
+  opacity: 0.86;
 }
 
 .panel-title {
@@ -692,9 +725,10 @@ body {
 .log-stream {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  color: rgba(171, 229, 205, 0.74);
-  font-size: clamp(0.96rem, 1.42vw, 1.32rem);
+  gap: 10px;
+  color: rgba(186, 238, 216, 0.84);
+  font-size: clamp(0.86rem, 1.18vw, 1.14rem);
+  font-weight: 650;
   line-height: 1.28;
 }
 
@@ -1182,12 +1216,12 @@ body {
 
 @media (min-width: 921px) and (max-width: 1320px) {
   .terminal {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 30vw);
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 24vw);
     gap: clamp(12px, 1.5vw, 20px);
   }
 
   .goal-readout {
-    grid-template-columns: minmax(0, 1fr) minmax(106px, 146px);
+    grid-template-columns: minmax(0, 1fr) minmax(124px, 172px);
     gap: 18px;
   }
 
@@ -1196,7 +1230,7 @@ body {
   }
 
   .target-node b {
-    font-size: clamp(2rem, 3.6vw, 3.35rem);
+    font-size: clamp(2.1rem, 3.95vw, 3.8rem);
   }
 
   .log-stream {

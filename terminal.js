@@ -33,8 +33,10 @@ const CONFIG = {
     "MGS_TRANSMISSION // SIGNAL FOUND",
     "FOLLOW SIGNAL DETECTED",
     "TRACKING SUBSCRIBER NODE",
+    "ONE FOLLOW MOVES THE SIGNAL",
     "ПОДПИСКА СТАБИЛИЗИРУЕТ СИГНАЛ",
     "NEXT NODE: {goal}",
+    "{remaining} SIGNALS LEFT TO OPEN NODE",
     "СИГНАЛ НЕСТАБИЛЕН",
     "КТО-ТО ПОДКЛЮЧИЛСЯ",
     "КАНАЛ НЕ ЗАКРЫТ",
@@ -103,6 +105,7 @@ const signalText = document.querySelector("#signalText");
 const archiveText = document.querySelector("#archiveText");
 const nodeText = document.querySelector("#nodeText");
 const followerCount = document.querySelector("#followerCount");
+const signalPrompt = document.querySelector("#signalPrompt");
 const goalCount = document.querySelector("#goalCount");
 const goalFill = document.querySelector("#goalFill");
 const frequencyLocator = document.querySelector("#frequencyLocator");
@@ -224,7 +227,7 @@ function setMessage(text = randomItem(CONFIG.messages)) {
 
 function scheduleMessage() {
   window.clearTimeout(scheduleMessage.timer);
-  scheduleMessage.timer = window.setTimeout(() => setMessage(), randomBetween(14000, 32000));
+  scheduleMessage.timer = window.setTimeout(() => setMessage(), randomBetween(9000, 21000));
 }
 
 function addLog(line) {
@@ -287,6 +290,9 @@ function updateGoal() {
   const stage = stageFor(node);
 
   followerCount.textContent = formatNumber(followers);
+  signalPrompt.textContent = remaining
+    ? `1 FOLLOW = SIGNAL +1 / ${formatNumber(remaining)} LEFT`
+    : "NODE OPEN // SIGNAL COMPLETE";
   goalCount.textContent = formatNumber(CONFIG.nodeGoal);
   goalFill.style.width = `${node}%`;
   frequencyLocator.style.setProperty("--lock", `${node}%`);
@@ -314,6 +320,7 @@ function updateGoal() {
   trackingState.textContent = randomItem([
     `SEARCHING FOLLOW SIGNAL / ${node}% LOCK`,
     `SCANNING NODE / ${formatNumber(remaining)} LEFT`,
+    "1 FOLLOW = SIGNAL +1",
     "ANALOG FOLLOW TRACE ACTIVE",
     "SUBSCRIBER SIGNAL TRACKING",
   ]);
