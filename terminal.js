@@ -22,9 +22,9 @@ const CONFIG = {
   previewFlash: PARAMS.get("flash") === "preview",
   previewEcho: PARAMS.get("echo") === "preview",
   firstHiddenFrameMs: PARAMS.has("flash") ? [900, 1400] : [18000, 42000],
-  firstEchoFrameMs: PARAMS.has("echo") ? [900, 1400] : [4000, 8000],
+  firstEchoFrameMs: PARAMS.has("echo") ? [700, 1100] : [1800, 3600],
   hiddenFrameEveryMs: [54000, 120000],
-  echoFrameEveryMs: [7000, 15000],
+  echoFrameEveryMs: [4200, 9000],
   hiddenFrameDurationMs: [34, 96],
   rebootEnabled: PARAMS.get("reboot") !== "0",
   previewReboot: PARAMS.get("reboot") === "preview",
@@ -33,7 +33,6 @@ const CONFIG = {
     "MGS_TRANSMISSION // SIGNAL FOUND",
     "FOLLOW SIGNAL DETECTED",
     "TRACKING SUBSCRIBER NODE",
-    "ONE FOLLOW MOVES THE SIGNAL",
     "ПОДПИСКА СТАБИЛИЗИРУЕТ СИГНАЛ",
     "NEXT NODE: {goal}",
     "{remaining} SIGNALS LEFT TO OPEN NODE",
@@ -68,7 +67,10 @@ const CONFIG = {
     "signal stable",
     "я слышу это",
     "канал живой",
-    "подпишись чтобы сигнал не пропал",
+    "relay still open",
+    "осталось {remaining}",
+    "node почти открылся",
+    "ты тоже видишь это?",
   ],
   hiddenFrames: [
     "ТЫ ЭТО УВИДЕЛ?",
@@ -291,7 +293,7 @@ function updateGoal() {
 
   followerCount.textContent = formatNumber(followers);
   signalPrompt.textContent = remaining
-    ? `1 FOLLOW = SIGNAL +1 / ${formatNumber(remaining)} LEFT`
+    ? `RELAY NODE / ${formatNumber(remaining)} UNTIL OPEN`
     : "NODE OPEN // SIGNAL COMPLETE";
   goalCount.textContent = formatNumber(CONFIG.nodeGoal);
   goalFill.style.width = `${node}%`;
@@ -320,7 +322,7 @@ function updateGoal() {
   trackingState.textContent = randomItem([
     `SEARCHING FOLLOW SIGNAL / ${node}% LOCK`,
     `SCANNING NODE / ${formatNumber(remaining)} LEFT`,
-    "1 FOLLOW = SIGNAL +1",
+    `RELAY NODE / ${formatNumber(remaining)} LEFT`,
     "ANALOG FOLLOW TRACE ACTIVE",
     "SUBSCRIBER SIGNAL TRACKING",
   ]);
@@ -364,17 +366,17 @@ function echoLine() {
 function ghostPosition() {
   const zones = window.innerWidth < window.innerHeight
     ? [
-        { x: [54, 76], y: [18, 29] },
-        { x: [56, 76], y: [48, 60] },
+        { x: [50, 76], y: [16, 28] },
+        { x: [42, 74], y: [44, 58] },
         { x: [10, 34], y: [66, 78] },
-        { x: [46, 72], y: [73, 84] },
+        { x: [34, 66], y: [72, 84] },
       ]
     : [
-        { x: [48, 62], y: [13, 25] },
-        { x: [52, 64], y: [50, 65] },
-        { x: [14, 34], y: [68, 78] },
-        { x: [72, 88], y: [72, 82] },
-        { x: [36, 52], y: [8, 18] },
+        { x: [43, 58], y: [14, 25] },
+        { x: [50, 68], y: [36, 50] },
+        { x: [16, 38], y: [62, 74] },
+        { x: [58, 76], y: [67, 80] },
+        { x: [30, 48], y: [8, 17] },
       ];
   const zone = randomItem(zones);
   return {
@@ -383,18 +385,18 @@ function ghostPosition() {
   };
 }
 
-function spawnGhostComment() {
+function spawnGhostComment(scheduleNext = true) {
   const line = echoLine();
   const ghost = document.createElement("div");
   const position = ghostPosition();
-  const duration = CONFIG.previewEcho ? 5200 : randomBetween(3200, 6400);
-  const size = randomBetween(110, 250) / 100;
+  const duration = CONFIG.previewEcho ? 7800 : randomBetween(6200, 11800);
+  const size = randomBetween(170, 340) / 100;
   ghost.className = "ghost-comment";
 
   if (typeof line === "string") {
-    ghost.textContent = line;
+    ghost.textContent = renderTemplate(line);
   } else {
-    ghost.textContent = line.text;
+    ghost.textContent = renderTemplate(line.text);
     if (line.handle) {
       const handle = document.createElement("b");
       handle.textContent = line.handle;
@@ -406,13 +408,16 @@ function spawnGhostComment() {
   ghost.style.top = `${position.y}%`;
   ghost.style.setProperty("--ghost-size", `clamp(${size * 0.62}rem, ${size}vw, ${size * 1.45}rem)`);
   ghost.style.setProperty("--ghost-duration", `${duration}ms`);
-  ghost.style.setProperty("--ghost-opacity", String(randomBetween(26, 46) / 100));
-  ghost.style.setProperty("--ghost-drift-x", `${randomBetween(-18, 18)}px`);
+  ghost.style.setProperty("--ghost-opacity", String(randomBetween(72, 94) / 100));
+  ghost.style.setProperty("--ghost-drift-x", `${randomBetween(-24, 24)}px`);
   ghostLayer.append(ghost);
   window.setTimeout(() => ghost.remove(), duration + 500);
 
+  if (!CONFIG.previewEcho && Math.random() < 0.22) {
+    window.setTimeout(() => spawnGhostComment(false), randomBetween(700, 1700));
+  }
   if (Math.random() < 0.32) triggerDatamosh();
-  scheduleEchoFrame();
+  if (scheduleNext) scheduleEchoFrame();
 }
 
 function scheduleEchoFrame(initial = false) {

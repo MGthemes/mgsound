@@ -222,25 +222,31 @@ body {
 }
 
 .ghost-layer {
-  z-index: 3;
+  z-index: 12;
   overflow: hidden;
+  mix-blend-mode: screen;
 }
 
 .ghost-comment {
   position: absolute;
-  max-width: min(36vw, 520px);
-  color: rgba(208, 255, 234, 0.54);
-  font-size: var(--ghost-size, clamp(1rem, 2vw, 2.1rem));
-  font-weight: 680;
+  z-index: 1;
+  max-width: min(46vw, 680px);
+  padding: 0.16em 0.28em;
+  border-left: 2px solid rgba(70, 214, 207, 0.46);
+  background: linear-gradient(90deg, rgba(0, 18, 14, 0.62), rgba(0, 0, 0, 0.14), transparent);
+  color: rgba(230, 255, 242, 0.94);
+  font-size: var(--ghost-size, clamp(1.25rem, 2.6vw, 3rem));
+  font-weight: 780;
   line-height: 1.05;
   text-transform: lowercase;
   white-space: pre-line;
-  opacity: 0;
+  opacity: var(--ghost-opacity, 0.76);
   text-shadow:
-    2px 0 rgba(70, 214, 207, 0.26),
-    -2px 0 rgba(115, 73, 164, 0.2),
-    0 0 34px rgba(105, 210, 151, 0.16);
-  filter: blur(0.18px);
+    2px 0 rgba(70, 214, 207, 0.44),
+    -2px 0 rgba(115, 73, 164, 0.32),
+    0 0 24px rgba(105, 210, 151, 0.34),
+    0 0 60px rgba(70, 214, 207, 0.2);
+  filter: blur(0.08px) brightness(1.08);
   transform: translate3d(0, 10px, 0);
   animation: ghostCommentLife var(--ghost-duration, 4.6s) ease-in-out forwards;
 }
@@ -248,9 +254,9 @@ body {
 .ghost-comment b {
   display: block;
   margin-top: 0.34em;
-  color: rgba(122, 163, 147, 0.5);
-  font-size: 0.42em;
-  font-weight: 500;
+  color: rgba(166, 226, 204, 0.66);
+  font-size: 0.46em;
+  font-weight: 650;
   letter-spacing: 0.08em;
 }
 
@@ -1018,18 +1024,23 @@ body {
 
 @keyframes ghostCommentLife {
   0% {
-    opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.98);
+    opacity: 0.28;
+    transform: translate3d(0, 14px, 0) scale(0.985);
   }
 
-  18%, 66% {
+  16%, 72% {
     opacity: var(--ghost-opacity, 0.46);
     transform: translate3d(var(--ghost-drift-x, 6px), 0, 0) scale(1);
   }
 
+  44% {
+    opacity: calc(var(--ghost-opacity, 0.46) + 0.08);
+    transform: translate3d(calc(var(--ghost-drift-x, 6px) * 1.25), -2px, 0) scale(1.006);
+  }
+
   100% {
     opacity: 0;
-    transform: translate3d(calc(var(--ghost-drift-x, 6px) * 1.8), -10px, 0) scale(1.015);
+    transform: translate3d(calc(var(--ghost-drift-x, 6px) * 1.8), -14px, 0) scale(1.02);
   }
 }
 
