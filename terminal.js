@@ -21,14 +21,15 @@ const CONFIG = {
   hiddenFramesEnabled: PARAMS.get("hidden") !== "0",
   previewFlash: PARAMS.get("flash") === "preview",
   previewEcho: PARAMS.get("echo") === "preview",
+  previewScan: PARAMS.get("scan") === "preview",
   firstHiddenFrameMs: PARAMS.has("flash") ? [900, 1400] : [18000, 42000],
-  firstEchoFrameMs: PARAMS.has("echo") ? [700, 1100] : [1800, 3600],
+  firstEchoFrameMs: PARAMS.has("echo") ? [700, 1100] : [1600, 3200],
   hiddenFrameEveryMs: [54000, 120000],
-  echoFrameEveryMs: [4200, 9000],
+  echoFrameEveryMs: [5000, 11500],
   hiddenFrameDurationMs: [34, 96],
   rebootEnabled: PARAMS.get("reboot") !== "0",
   previewReboot: PARAMS.get("reboot") === "preview",
-  rebootEveryMs: PARAMS.get("reboot") === "preview" ? [900, 1400] : [25000, 33000],
+  rebootEveryMs: PARAMS.get("reboot") === "preview" ? [900, 1400] : [90000, 150000],
   messages: [
     "MGS_TRANSMISSION // SIGNAL FOUND",
     "FOLLOW SIGNAL DETECTED",
@@ -71,6 +72,32 @@ const CONFIG = {
     "осталось {remaining}",
     "node почти открылся",
     "ты тоже видишь это?",
+    "передача не закончилась",
+    "это было на старой кассете",
+    "late signal received",
+    "open channel",
+    "ещё один подключился",
+    "сигнал держится",
+    "кто оставил этот экран",
+    "не перематывай",
+    "archive pulse",
+    "шум похож на голос",
+    "до узла {remaining}",
+    "частота почти поймана",
+    "я здесь не один",
+    "relay ожил",
+    "node response",
+    "слышно через стену",
+    "проверка канала",
+    "не закрывай передачу",
+    "у кого тоже мурашки",
+    "follow lock rising",
+    "в эфире кто-то есть",
+    "этот экран смотрит назад",
+    "канал нашёл тебя",
+    "ночной архив активен",
+    "сигнал стал ближе",
+    "1000 откроет узел",
   ],
   hiddenFrames: [
     "ТЫ ЭТО УВИДЕЛ?",
@@ -85,6 +112,7 @@ const CONFIG = {
 const terminal = document.querySelector(".terminal");
 const datamosh = document.querySelector("#datamosh");
 const signalWarp = document.querySelector("#signalWarp");
+const uplinkScan = document.querySelector("#uplinkScan");
 const ghostLayer = document.querySelector("#ghostLayer");
 const rebootOverlay = document.querySelector("#rebootOverlay");
 const bootStream = document.querySelector("#bootStream");
@@ -119,6 +147,7 @@ const remainingLine = document.querySelector("#remainingLine");
 let followers = CONFIG.followerCount;
 let lastMessage = "";
 let liveEchoLines = [];
+let recentEchoKeys = [];
 
 const BOOT_LINES = [
   "sync.follow_node({followers}/{goal})",
@@ -212,6 +241,46 @@ function renderTemplate(text) {
     .replaceAll("{progress}", String(progressPercent()))
     .replaceAll("{remaining}", formatNumber(remainingFollowers()))
     .replaceAll("{goal}", formatNumber(CONFIG.nodeGoal));
+}
+
+function normalizeEchoText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isUsableCommentText(value) {
+  const text = normalizeEchoText(value).toLowerCase();
+  if (!text) return false;
+  return ![
+    "комментарий без текста",
+    "комментарий с изображением",
+    "без текста",
+    "no text",
+    "empty comment",
+  ].some((blocked) => text.includes(blocked));
+}
+
+function echoKey(line) {
+  return typeof line === "string"
+    ? normalizeEchoText(line).toLowerCase()
+    : normalizeEchoText(`${line.text || ""} ${line.handle || ""}`).toLowerCase();
+}
+
+function rememberEcho(line) {
+  const key = echoKey(line);
+  if (!key) return;
+  recentEchoKeys.push(key);
+  const maxRecent = Math.min(14, Math.max(7, CONFIG.openChannelLines.length / 3));
+  recentEchoKeys = recentEchoKeys.slice(-maxRecent);
+}
+
+function pickEchoLine(items) {
+  const usable = items.filter((item) => isUsableCommentText(typeof item === "string" ? item : item.text));
+  if (!usable.length) return null;
+
+  const fresh = usable.filter((item) => !recentEchoKeys.includes(echoKey(item)));
+  return randomItem(fresh.length ? fresh : usable);
 }
 
 function setMessage(text = randomItem(CONFIG.messages)) {
@@ -357,10 +426,11 @@ function scheduleHiddenFrame(initial = false) {
 
 function echoLine() {
   if (liveEchoLines.length && Math.random() < 0.72) {
-    return randomItem(liveEchoLines);
+    const liveLine = pickEchoLine(liveEchoLines);
+    if (liveLine) return liveLine;
   }
 
-  return randomItem(CONFIG.openChannelLines);
+  return pickEchoLine(CONFIG.openChannelLines) || randomItem(CONFIG.openChannelLines);
 }
 
 function ghostPosition() {
@@ -387,6 +457,7 @@ function ghostPosition() {
 
 function spawnGhostComment(scheduleNext = true) {
   const line = echoLine();
+  rememberEcho(line);
   const ghost = document.createElement("div");
   const position = ghostPosition();
   const duration = CONFIG.previewEcho ? 7800 : randomBetween(6200, 11800);
@@ -449,6 +520,18 @@ function triggerSignalWarp() {
   }, 1350);
 }
 
+function triggerUplinkScan() {
+  uplinkScan.classList.remove("active");
+  terminal.classList.remove("crt-roll");
+  void uplinkScan.offsetWidth;
+  uplinkScan.classList.add("active");
+  terminal.classList.add("crt-roll");
+  window.setTimeout(() => {
+    uplinkScan.classList.remove("active");
+    terminal.classList.remove("crt-roll");
+  }, 1650);
+}
+
 function triggerColorSplit() {
   terminal.classList.remove("color-split");
   void terminal.offsetWidth;
@@ -464,8 +547,8 @@ function populateRebootStream() {
     const line = document.createElement("span");
     const columnShift = index % 3 === 0 ? 4 : index % 3 === 1 ? 18 : 38;
     const top = randomBetween(4, 92);
-    const delay = randomBetween(0, 3600);
-    const speed = randomBetween(1200, 2600);
+    const delay = randomBetween(0, 1500);
+    const speed = randomBetween(420, 980);
     const opacity = randomBetween(42, 82) / 100;
     const size = randomBetween(78, 112) / 100;
 
@@ -495,7 +578,7 @@ function triggerReboot() {
     terminal.classList.remove("rebooting");
     if (bootStream) bootStream.replaceChildren();
     updateGoal();
-  }, 4600);
+  }, 2450);
   if (!CONFIG.previewReboot) scheduleReboot();
 }
 
@@ -527,6 +610,15 @@ function scheduleSignalWarp(initial = false) {
   window.setTimeout(scheduleSignalWarp, randomBetween(9000, 17000));
 }
 
+function scheduleUplinkScan(initial = false) {
+  if (initial) {
+    window.setTimeout(() => scheduleUplinkScan(), randomBetween(5200, 9800));
+    return;
+  }
+  triggerUplinkScan();
+  window.setTimeout(scheduleUplinkScan, randomBetween(11000, 24000));
+}
+
 function scheduleColorSplit(initial = false) {
   if (initial) {
     window.setTimeout(() => scheduleColorSplit(), randomBetween(12000, 22000));
@@ -545,13 +637,13 @@ async function refreshLiveStats() {
     const nextFollowers = Number(data.stats?.followers);
     if (response.ok && data.ok && Number.isFinite(nextFollowers)) {
       followers = nextFollowers;
-      liveEchoLines = (data.comments || [])
+      liveEchoLines = (data.echoComments || data.comments || [])
         .map((comment) => ({
           text: comment.text || "",
           handle: comment.handle ? `@${comment.handle}` : comment.author || "",
         }))
-        .filter((comment) => comment.text)
-        .slice(0, 5);
+        .filter((comment) => isUsableCommentText(comment.text))
+        .slice(0, 16);
       updateGoal();
     }
   } catch (error) {
@@ -581,6 +673,11 @@ function init() {
   scheduleEchoFrame(true);
   scheduleAnalogLag(true);
   scheduleSignalWarp(true);
+  if (CONFIG.previewScan) {
+    window.setTimeout(triggerUplinkScan, 220);
+  } else {
+    scheduleUplinkScan(true);
+  }
   scheduleColorSplit(true);
   if (CONFIG.previewReboot) {
     window.setTimeout(triggerReboot, 120);

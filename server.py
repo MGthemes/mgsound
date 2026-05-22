@@ -37,6 +37,7 @@ CACHE_TTL_SECONDS = 3
 COMMENTS_TTL_SECONDS = 60
 COMMENT_VIDEO_LIMIT = 8
 COMMENT_REQUEST_DELAY_SECONDS = 1.15
+COMMENT_POOL_LIMIT = 18
 PLAYLIST_LIMIT = 200
 ROOT = Path(__file__).resolve().parent
 DAILY_BASELINE_PATH = ROOT / "daily-baseline.json"
@@ -395,7 +396,7 @@ def normalize_comment(comment, video):
     created_at = parse_int(comment.get("create_time"))
     text = (comment.get("text") or "").strip()
     if not text:
-        text = "Комментарий с изображением" if comment.get("images") else "Комментарий без текста"
+        return None
 
     return {
         "id": str(comment.get("id") or ""),
@@ -432,8 +433,10 @@ def fetch_video_comments(video):
 
         if data.get("code") == 0:
             return [
-                normalize_comment(comment, video)
+                normalized
                 for comment in (data.get("data") or {}).get("comments", [])
+                for normalized in [normalize_comment(comment, video)]
+                if normalized
             ]
 
         if "limit" in str(data.get("msg", "")).lower() and attempt == 0:
@@ -445,7 +448,7 @@ def fetch_video_comments(video):
     return []
 
 
-def fetch_latest_comments(video_sources):
+def fetch_latest_comments(video_sources, limit=COMMENT_POOL_LIMIT):
     comments = []
     seen = set()
 
@@ -466,11 +469,11 @@ def fetch_latest_comments(video_sources):
                 seen.add(comment_id)
 
         comments.sort(key=lambda item: item.get("createdAt") or "", reverse=True)
-        if len(comments) >= 5:
+        if len(comments) >= limit:
             break
 
     comments.sort(key=lambda item: item.get("createdAt") or "", reverse=True)
-    return comments[:5]
+    return comments[:limit]
 
 
 def store_comments(items):
@@ -615,7 +618,8 @@ def create_payload():
             "complete": all_videos_seen,
         },
         "latest": videos["latest"],
-        "comments": latest_comments,
+        "comments": latest_comments[:5],
+        "echoComments": latest_comments,
         "updatedAt": datetime.now(timezone.utc).isoformat(),
         "cacheAgeSeconds": 0,
         "refreshing": False,

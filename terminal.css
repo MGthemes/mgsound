@@ -110,6 +110,7 @@ body {
 .scanlines,
 .datamosh,
 .signal-warp,
+.uplink-scan,
 .tear-line,
 .ghost-layer,
 .hidden-flash {
@@ -197,6 +198,22 @@ body {
 .signal-warp.active-up {
   opacity: 0.7;
   animation: warpUp 1.25s cubic-bezier(0.2, 0.8, 0.25, 1) 1;
+}
+
+.uplink-scan {
+  z-index: 10;
+  opacity: 0;
+  background:
+    linear-gradient(180deg, transparent 0 22%, rgba(224, 255, 239, 0.1) 48%, rgba(70, 214, 207, 0.16) 52%, transparent 78%),
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(208, 255, 234, 0.035) 18px 19px, transparent 19px 38px);
+  mix-blend-mode: screen;
+  filter: blur(0.2px);
+  transform: translateY(110%);
+}
+
+.uplink-scan.active {
+  opacity: 0.72;
+  animation: uplinkScan 1.55s cubic-bezier(0.18, 0.74, 0.18, 1) 1;
 }
 
 .hidden-flash {
@@ -785,6 +802,14 @@ body {
   animation: microWarp 1.25s steps(6, end) 1;
 }
 
+.terminal.crt-roll .main-signal,
+.terminal.crt-roll .connection-log,
+.terminal.crt-roll .progress-stack,
+.terminal.crt-roll .top-row,
+.terminal.crt-roll .bottom-row {
+  animation: crtRollDistort 1.35s steps(9, end) 1;
+}
+
 .terminal.rebooting .main-signal,
 .terminal.rebooting .connection-log,
 .terminal.rebooting .progress-stack,
@@ -893,19 +918,19 @@ body {
 
 .reboot-overlay.active {
   opacity: 1;
-  animation: rebootTube 4.6s ease-in-out 1;
+  animation: rebootTube 2.45s steps(8, end) 1;
 }
 
 .reboot-overlay.active .boot-title {
-  animation: bootTitleIn 520ms steps(4, end) 120ms forwards;
+  animation: bootTitleIn 180ms steps(2, end) 80ms forwards;
 }
 
 .reboot-overlay.active .boot-footer {
-  animation: bootTitleIn 520ms steps(4, end) 2600ms forwards;
+  animation: bootTitleIn 180ms steps(2, end) 1250ms forwards;
 }
 
 .reboot-overlay.active .boot-scan {
-  animation: bootScan 4.2s cubic-bezier(0.2, 0.8, 0.25, 1) 120ms 1;
+  animation: bootScan 2.1s steps(10, end) 80ms 1;
 }
 
 @keyframes tubeBreath {
@@ -1016,6 +1041,58 @@ body {
   }
 }
 
+@keyframes uplinkScan {
+  0% {
+    opacity: 0;
+    transform: translateY(112%) scaleY(0.72);
+  }
+
+  12% {
+    opacity: 0.82;
+  }
+
+  42% {
+    opacity: 0.5;
+    transform: translateY(10%) scaleY(1.08);
+  }
+
+  78% {
+    opacity: 0.34;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-116%) scaleY(0.82);
+  }
+}
+
+@keyframes crtRollDistort {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    filter: none;
+  }
+
+  14% {
+    transform: translate3d(0, 7px, 0) skewX(-0.18deg);
+    filter: drop-shadow(3px 0 rgba(70, 214, 207, 0.18));
+  }
+
+  36% {
+    transform: translate3d(0, -4px, 0) skewX(0.14deg);
+    filter: contrast(1.2) drop-shadow(-4px 0 rgba(185, 58, 82, 0.12));
+  }
+
+  58% {
+    transform: translate3d(1px, 10px, 0) skewY(0.16deg);
+    filter: blur(0.35px) brightness(1.08);
+  }
+
+  82% {
+    transform: translate3d(-1px, -2px, 0);
+    filter: contrast(1.08);
+  }
+}
+
 @keyframes microWarp {
   0%, 100% { transform: translate3d(0, 0, 0); }
   30% { transform: translate3d(0, 5px, 0) skewY(0.18deg); }
@@ -1045,11 +1122,16 @@ body {
 }
 
 @keyframes rebootTube {
-  0% { clip-path: inset(50% 0 50% 0); filter: brightness(1.8); }
-  10% { clip-path: inset(48% 0 48% 0); }
-  22% { clip-path: inset(0 0 0 0); filter: brightness(0.72); }
-  76% { clip-path: inset(0 0 0 0); filter: brightness(0.64); }
-  100% { clip-path: inset(50% 0 50% 0); filter: brightness(1.5); }
+  0% { clip-path: inset(50% 0 50% 0); filter: brightness(2.4) contrast(1.4); transform: translateX(0); }
+  7% { clip-path: inset(44% 0 44% 0); transform: translateX(14px); }
+  14% { clip-path: inset(0 0 72% 0); filter: brightness(0.62) contrast(1.35); transform: translateX(-10px); }
+  22% { clip-path: inset(0 0 0 0); transform: translateX(0); }
+  36% { clip-path: inset(0 0 0 0); filter: brightness(0.8) contrast(1.2); }
+  48% { clip-path: inset(24% 0 18% 0); transform: translateX(9px); }
+  54% { clip-path: inset(0 0 0 0); transform: translateX(-6px); }
+  78% { clip-path: inset(0 0 0 0); filter: brightness(0.56) contrast(1.38); }
+  88% { clip-path: inset(44% 0 42% 0); filter: brightness(2); transform: translateX(12px); }
+  100% { clip-path: inset(50% 0 50% 0); filter: brightness(2.1); transform: translateX(0); }
 }
 
 @keyframes bootTitleIn {
@@ -1062,7 +1144,7 @@ body {
 @keyframes bootLineFly {
   0% {
     opacity: 0;
-    transform: translate3d(-9vw, 24px, 0) skewX(-4deg);
+    transform: translate3d(-16vw, 24px, 0) skewX(-8deg);
     clip-path: inset(0 100% 0 0);
   }
 
@@ -1078,12 +1160,12 @@ body {
 
   82% {
     opacity: 0.24;
-    transform: translate3d(6vw, -18px, 0) skewX(2deg);
+    transform: translate3d(10vw, -18px, 0) skewX(5deg);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(12vw, -32px, 0) skewX(5deg);
+    transform: translate3d(22vw, -32px, 0) skewX(10deg);
     clip-path: inset(0 0 0 72%);
   }
 }
