@@ -40,6 +40,26 @@
           <strong data-stat="comments">0</strong>
           <span class="delta" data-delta="comments">Сегодня +0</span>
         </article>
+        <section class="hourly-panel" aria-labelledby="hourlyChartTitle">
+          <div class="section-heading">
+            <div>
+              <h2 id="hourlyChartTitle">Почасовой рост</h2>
+              <p class="section-subtitle">Просмотры и лайки за сегодня</p>
+            </div>
+            <div class="chart-legend" aria-label="Легенда графика">
+              <span><i class="legend-dot views"></i>Просмотры</span>
+              <span><i class="legend-dot likes"></i>Лайки</span>
+            </div>
+          </div>
+          <div class="chart-card">
+            <svg id="hourlyChart" class="hourly-chart" viewBox="0 0 760 240" role="img" aria-label="Почасовой график просмотров и лайков"></svg>
+            <div id="hourlyChartEmpty" class="chart-empty">Жду первый часовой срез...</div>
+            <div class="chart-footer">
+              <span id="hourlyChartStatus">Обновляется live</span>
+              <span>шаг: 1 час</span>
+            </div>
+          </div>
+        </section>
         <article class="stat">
           <p>Шеры</p>
           <strong data-stat="shares">0</strong>

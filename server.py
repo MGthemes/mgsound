@@ -44,6 +44,7 @@ DAILY_BASELINE_PATH = ROOT / "daily-baseline.json"
 DAILY_BASELINE_TZ = os.environ.get("DAILY_BASELINE_TZ", "America/Los_Angeles")
 DELTA_STAT_KEYS = ("likes", "views", "comments", "shares", "followers", "following", "videos", "saves", "er")
 VIDEO_DELTA_KEYS = ("views", "likes", "comments", "shares", "saves", "interactions")
+HOURLY_STAT_KEYS = ("views", "likes")
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -91,6 +92,14 @@ def local_day_from_datetime(value):
     if zone is not None:
         value = value.astimezone(zone)
     return value.date().isoformat()
+
+
+def current_local_datetime():
+    value = datetime.now(timezone.utc)
+    zone = daily_timezone()
+    if zone is not None:
+        return value.astimezone(zone)
+    return value.astimezone()
 
 
 def video_published_at(entry):
@@ -151,6 +160,7 @@ def write_daily_baseline(day, stats):
         "date": day,
         "stats": {},
         "videos": {},
+        "hourly": {},
         "createdAt": datetime.now(timezone.utc).isoformat(),
     }
     payload["stats"] = {
@@ -200,6 +210,69 @@ def video_delta_from_baseline(video, baseline_entry):
         key: round(video_stat_value(video, key) - float(baseline_entry.get(key) or 0), 4)
         for key in VIDEO_DELTA_KEYS
     }
+
+
+def build_hourly_entry(hour_key, stats, baseline_stats, now):
+    return {
+        "hour": int(hour_key),
+        "label": f"{hour_key}:00",
+        "views": max(
+            0,
+            round(float(stats.get("views") or 0) - float(baseline_stats.get("views") or 0), 4),
+        ),
+        "likes": max(
+            0,
+            round(float(stats.get("likes") or 0) - float(baseline_stats.get("likes") or 0), 4),
+        ),
+        "updatedAt": now.isoformat(timespec="seconds"),
+    }
+
+
+def normalize_hourly_history(hourly):
+    history = []
+    for key, entry in hourly.items():
+        if not isinstance(entry, dict):
+            continue
+        try:
+            hour = int(entry.get("hour", key))
+        except (TypeError, ValueError):
+            continue
+        if hour < 0 or hour > 23:
+            continue
+        history.append(
+            {
+                "hour": hour,
+                "label": entry.get("label") or f"{hour:02d}:00",
+                "views": max(0, round(float(entry.get("views") or 0), 4)),
+                "likes": max(0, round(float(entry.get("likes") or 0), 4)),
+                "updatedAt": entry.get("updatedAt") or "",
+            }
+        )
+    history.sort(key=lambda item: item["hour"])
+    return history
+
+
+def update_hourly_history(baseline, stats, baseline_stats):
+    hourly = baseline.get("hourly")
+    changed = False
+    if not isinstance(hourly, dict):
+        hourly = {}
+        baseline["hourly"] = hourly
+        changed = True
+
+    now = current_local_datetime()
+    hour_key = now.strftime("%H")
+    current = build_hourly_entry(hour_key, stats, baseline_stats, now)
+    previous = hourly.get(hour_key)
+
+    if (
+        not isinstance(previous, dict)
+        or any(float(previous.get(key) or 0) != float(current.get(key) or 0) for key in HOURLY_STAT_KEYS)
+    ):
+        hourly[hour_key] = current
+        changed = True
+
+    return normalize_hourly_history(hourly), changed
 
 
 def get_today_delta(stats, videos=None):
@@ -252,14 +325,16 @@ def get_today_delta(stats, videos=None):
 
             video_deltas[key] = video_delta_from_baseline(video, baseline_entry)
 
-        if baseline_changed:
+        stat_delta = {
+            key: round(float(stats.get(key) or 0) - float(baseline_stats.get(key) or 0), 4)
+            for key in DELTA_STAT_KEYS
+        }
+        hourly_history, hourly_changed = update_hourly_history(baseline, stats, baseline_stats)
+
+        if baseline_changed or hourly_changed:
             persist_daily_baseline(baseline)
 
-    stat_delta = {
-        key: round(float(stats.get(key) or 0) - float(baseline_stats.get(key) or 0), 4)
-        for key in DELTA_STAT_KEYS
-    }
-    return stat_delta, video_deltas, day
+    return stat_delta, video_deltas, day, hourly_history
 
 
 def fetch_profile(username):
@@ -596,7 +671,7 @@ def create_payload():
         "saves": videos["saves"],
         "er": round(engagement_rate, 2),
     }
-    today_delta, video_today_delta, today_delta_date = get_today_delta(stats, videos["videos"])
+    today_delta, video_today_delta, today_delta_date, hourly_history = get_today_delta(stats, videos["videos"])
     top_today = build_top_videos_today(videos["videos"], video_today_delta)
 
     return {
@@ -611,6 +686,7 @@ def create_payload():
         "stats": stats,
         "todayDelta": today_delta,
         "todayDeltaDate": today_delta_date,
+        "hourlyHistory": hourly_history,
         "topToday": top_today,
         "coverage": {
             "videosSeen": videos["videosSeen"],
