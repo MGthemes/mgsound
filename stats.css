@@ -362,6 +362,40 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
+.chart-best-band {
+  fill: rgba(255, 255, 255, 0.035);
+  stroke: rgba(32, 213, 210, 0.16);
+  stroke-width: 1;
+}
+
+.chart-best-label {
+  fill: var(--cyan);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-bar {
+  opacity: 0.72;
+  transform-origin: bottom;
+  transition: height 500ms ease, y 500ms ease, opacity 500ms ease;
+}
+
+.chart-bar.views {
+  fill: url(#viewsBar);
+  filter: drop-shadow(0 0 8px rgba(32, 213, 210, 0.12));
+}
+
+.chart-bar.likes {
+  fill: url(#likesBar);
+  filter: drop-shadow(0 0 8px rgba(255, 59, 92, 0.14));
+}
+
+.chart-bar.is-best {
+  opacity: 1;
+  filter: drop-shadow(0 0 14px rgba(32, 213, 210, 0.22));
+}
+
 .chart-line {
   fill: none;
   stroke-linecap: round;

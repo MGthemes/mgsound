@@ -125,70 +125,81 @@ function makeSvgElement(tag, attrs = {}) {
   return node;
 }
 
-function linePath(points) {
-  return points.map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+function hourLabel(hour) {
+  return `${String(hour).padStart(2, "0")}:00`;
 }
 
-function areaPath(points, baselineY) {
-  if (!points.length) return "";
-  return [
-    linePath(points),
-    `L ${points[points.length - 1].x.toFixed(2)} ${baselineY}`,
-    `L ${points[0].x.toFixed(2)} ${baselineY}`,
-    "Z",
-  ].join(" ");
-}
+function buildHourlyBuckets(history = []) {
+  let cleanHistory = history
+    .map((item) => ({
+      hour: Number(item.hour),
+      label: item.label || hourLabel(Number(item.hour) || 0),
+      views: Math.max(0, Number(item.views) || 0),
+      likes: Math.max(0, Number(item.likes) || 0),
+    }))
+    .filter((item) => Number.isFinite(item.hour) && item.hour >= 0 && item.hour <= 23)
+    .sort((a, b) => a.hour - b.hour);
+  if (cleanHistory.length && cleanHistory[0].hour > 0) {
+    cleanHistory = [{ hour: 0, label: "00:00", views: 0, likes: 0, synthetic: true }, ...cleanHistory];
+  }
 
-function pointsForSeries(history, key, laneTop, laneBottom, chart) {
-  const maxValue = Math.max(...history.map((item) => Number(item[key]) || 0), 1);
-  return history.map((item) => {
-    const hour = Math.min(23, Math.max(0, Number(item.hour) || 0));
-    const value = Math.max(0, Number(item[key]) || 0);
-    const x = chart.left + (hour / 23) * (chart.right - chart.left);
-    const y = laneBottom - (value / maxValue) * (laneBottom - laneTop);
-    return { x, y, value, hour };
+  const snapshots = new Map(cleanHistory.map((item) => [item.hour, item]));
+  let previousViews = 0;
+  let previousLikes = 0;
+
+  return Array.from({ length: 24 }, (_, hour) => {
+    const snapshot = snapshots.get(hour);
+    const recorded = Boolean(snapshot && !snapshot.synthetic);
+    let views = 0;
+    let likes = 0;
+
+    if (snapshot) {
+      views = Math.max(0, snapshot.views - previousViews);
+      likes = Math.max(0, snapshot.likes - previousLikes);
+      previousViews = snapshot.views;
+      previousLikes = snapshot.likes;
+    }
+
+    return {
+      hour,
+      label: hourLabel(hour),
+      views,
+      likes,
+      recorded,
+      score: views + likes * 8,
+    };
   });
 }
 
-function appendSeries(svg, points, key, laneBottom, gradientId) {
-  if (!points.length) return;
+function appendHourlyBars(svg, buckets, key, laneTop, laneBottom, chart, bestHour) {
+  const maxValue = Math.max(...buckets.map((item) => Number(item[key]) || 0), 1);
+  const step = (chart.right - chart.left) / 24;
+  const barWidth = Math.max(5, step * 0.36);
+  const laneHeight = laneBottom - laneTop;
 
-  const area = makeSvgElement("path", {
-    class: "chart-area",
-    d: areaPath(points, laneBottom),
-    fill: `url(#${gradientId})`,
-  });
-  const path = makeSvgElement("path", {
-    class: `chart-line ${key}`,
-    d: linePath(points),
-  });
+  buckets.forEach((bucket) => {
+    const value = Math.max(0, Number(bucket[key]) || 0);
+    const barHeight = value > 0 ? Math.max(4, (value / maxValue) * laneHeight) : 0;
+    const x = chart.left + bucket.hour * step + step / 2 - barWidth / 2;
+    const y = laneBottom - barHeight;
 
-  svg.append(area, path);
-
-  points.forEach((point) => {
-    const dot = makeSvgElement("circle", {
-      class: `chart-point ${key}`,
-      cx: point.x.toFixed(2),
-      cy: point.y.toFixed(2),
-      r: points.length === 1 ? 4.5 : 3.4,
+    const bar = makeSvgElement("rect", {
+      class: `chart-bar ${key}${bucket.hour === bestHour ? " is-best" : ""}`,
+      x: x.toFixed(2),
+      y: y.toFixed(2),
+      width: barWidth.toFixed(2),
+      height: barHeight.toFixed(2),
+      rx: "2.5",
     });
-    svg.append(dot);
+    svg.append(bar);
   });
 }
 
 function renderHourlyChart(history = [], updatedAt) {
   if (!hourlyChart || !hourlyChartEmpty || !hourlyChartStatus) return;
 
-  let cleanHistory = history
-    .map((item) => ({
-      hour: Number(item.hour),
-      label: item.label || `${String(item.hour).padStart(2, "0")}:00`,
-      views: Math.max(0, Number(item.views) || 0),
-      likes: Math.max(0, Number(item.likes) || 0),
-    }))
-    .filter((item) => Number.isFinite(item.hour) && item.hour >= 0 && item.hour <= 23)
-    .sort((a, b) => a.hour - b.hour);
-  const recordedPoints = cleanHistory.length;
+  const buckets = buildHourlyBuckets(history);
+  const recordedPoints = buckets.filter((item) => item.recorded).length;
 
   hourlyChart.replaceChildren();
 
@@ -198,13 +209,14 @@ function renderHourlyChart(history = [], updatedAt) {
     return;
   }
 
-  if (cleanHistory[0].hour > 0) {
-    cleanHistory = [{ hour: 0, label: "00:00", views: 0, likes: 0 }, ...cleanHistory];
-  }
-
   hourlyChartEmpty.classList.add("is-hidden");
 
-  const signature = cleanHistory.map((item) => `${item.hour}:${item.views}:${item.likes}`).join("|");
+  const hasGrowth = buckets.some((item) => item.views > 0 || item.likes > 0);
+  const bestBucket = hasGrowth
+    ? buckets.reduce((best, item) => (item.score > best.score ? item : best), buckets[0])
+    : null;
+
+  const signature = buckets.map((item) => `${item.hour}:${item.views}:${item.likes}`).join("|");
   const chartCard = hourlyChart.closest(".chart-card");
   if (lastHourlySignature && signature !== lastHourlySignature && chartCard) {
     chartCard.classList.remove("is-updated");
@@ -220,14 +232,14 @@ function renderHourlyChart(history = [], updatedAt) {
     left: 68,
     right: 724,
     viewsTop: 34,
-    viewsBottom: 104,
+    viewsBottom: 112,
     likesTop: 136,
     likesBottom: 204,
   };
 
   const defs = makeSvgElement("defs");
   const viewsGradient = makeSvgElement("linearGradient", {
-    id: "viewsArea",
+    id: "viewsBar",
     x1: "0",
     x2: "0",
     y1: "0",
@@ -235,11 +247,11 @@ function renderHourlyChart(history = [], updatedAt) {
   });
   viewsGradient.append(
     makeSvgElement("stop", { offset: "0%", "stop-color": "rgba(32, 213, 210, 0.58)" }),
-    makeSvgElement("stop", { offset: "100%", "stop-color": "rgba(32, 213, 210, 0)" })
+    makeSvgElement("stop", { offset: "100%", "stop-color": "rgba(32, 213, 210, 0.16)" })
   );
 
   const likesGradient = makeSvgElement("linearGradient", {
-    id: "likesArea",
+    id: "likesBar",
     x1: "0",
     x2: "0",
     y1: "0",
@@ -247,7 +259,7 @@ function renderHourlyChart(history = [], updatedAt) {
   });
   likesGradient.append(
     makeSvgElement("stop", { offset: "0%", "stop-color": "rgba(255, 59, 92, 0.52)" }),
-    makeSvgElement("stop", { offset: "100%", "stop-color": "rgba(255, 59, 92, 0)" })
+    makeSvgElement("stop", { offset: "100%", "stop-color": "rgba(255, 59, 92, 0.14)" })
   );
   defs.append(viewsGradient, likesGradient);
   hourlyChart.append(defs);
@@ -262,8 +274,21 @@ function renderHourlyChart(history = [], updatedAt) {
     }));
   });
 
-  [0, 6, 12, 18, 23].forEach((hour) => {
-    const x = chart.left + (hour / 23) * (chart.right - chart.left);
+  const step = (chart.right - chart.left) / 24;
+  if (bestBucket) {
+    const band = makeSvgElement("rect", {
+      class: "chart-best-band",
+      x: (chart.left + bestBucket.hour * step + step * 0.08).toFixed(2),
+      y: chart.viewsTop - 10,
+      width: (step * 0.84).toFixed(2),
+      height: chart.likesBottom - chart.viewsTop + 20,
+      rx: "5",
+    });
+    hourlyChart.append(band);
+  }
+
+  [0, 3, 6, 9, 12, 15, 18, 21, 23].forEach((hour) => {
+    const x = chart.left + hour * step + step / 2;
     hourlyChart.append(makeSvgElement("line", {
       class: "chart-grid-line",
       x1: x,
@@ -281,15 +306,14 @@ function renderHourlyChart(history = [], updatedAt) {
     hourlyChart.append(label);
   });
 
-  const viewsPoints = pointsForSeries(cleanHistory, "views", chart.viewsTop, chart.viewsBottom, chart);
-  const likesPoints = pointsForSeries(cleanHistory, "likes", chart.likesTop, chart.likesBottom, chart);
-  appendSeries(hourlyChart, viewsPoints, "views", chart.viewsBottom, "viewsArea");
-  appendSeries(hourlyChart, likesPoints, "likes", chart.likesBottom, "likesArea");
+  appendHourlyBars(hourlyChart, buckets, "views", chart.viewsTop, chart.viewsBottom, chart, bestBucket?.hour);
+  appendHourlyBars(hourlyChart, buckets, "likes", chart.likesTop, chart.likesBottom, chart, bestBucket?.hour);
 
-  const latest = cleanHistory[cleanHistory.length - 1];
+  const maxViews = Math.max(...buckets.map((item) => item.views), 0);
+  const maxLikes = Math.max(...buckets.map((item) => item.likes), 0);
   const labels = [
-    ["Просмотры", chart.viewsTop + 12, `+${formatNumber(latest.views)}`],
-    ["Лайки", chart.likesTop + 12, `+${formatNumber(latest.likes)}`],
+    ["Просмотры", chart.viewsTop + 12, `пик +${formatNumber(maxViews)}/ч`],
+    ["Лайки", chart.likesTop + 12, `пик +${formatNumber(maxLikes)}/ч`],
   ];
 
   labels.forEach(([labelText, y, value]) => {
@@ -309,7 +333,21 @@ function renderHourlyChart(history = [], updatedAt) {
     hourlyChart.append(label, valueLabel);
   });
 
-  hourlyChartStatus.textContent = `${recordedPoints} ч. · обновлено ${formatTime(updatedAt || new Date().toISOString())}`;
+  if (bestBucket) {
+    const bestLabel = makeSvgElement("text", {
+      class: "chart-best-label",
+      x: chart.right,
+      y: 24,
+      "text-anchor": "end",
+    });
+    bestLabel.textContent = `лучший час: ${bestBucket.label}`;
+    hourlyChart.append(bestLabel);
+  }
+
+  const updated = formatTime(updatedAt || new Date().toISOString());
+  hourlyChartStatus.textContent = bestBucket
+    ? `лучший час: ${bestBucket.label} · обновлено ${updated}`
+    : `жду прирост · обновлено ${updated}`;
 }
 
 function renderTopVideos(videos = []) {
