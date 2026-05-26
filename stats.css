@@ -159,8 +159,9 @@ h1 {
 .stat strong {
   display: block;
   max-width: 100%;
-  overflow-wrap: anywhere;
-  font-size: clamp(2rem, 5vw, 4.4rem);
+  overflow-wrap: normal;
+  white-space: nowrap;
+  font-size: clamp(2rem, 4.1vw, 3.75rem);
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   letter-spacing: 0;
